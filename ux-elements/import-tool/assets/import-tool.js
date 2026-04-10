@@ -307,11 +307,14 @@
                 }
             });
 
+            var downloadImages = $('#stu-download-images').is(':checked') ? '1' : '0';
+
             var formData = new FormData();
             formData.append('action', 'stu_confirm_import');
             formData.append('nonce', stuImport.nonce);
             formData.append('post_id', stuImport.postId);
             formData.append('dynamic_sources', JSON.stringify(dynamicSources));
+            formData.append('download_images', downloadImages);
 
             if (STU.file) {
                 formData.append('file', STU.file);

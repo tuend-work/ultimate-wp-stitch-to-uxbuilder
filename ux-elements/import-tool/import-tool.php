@@ -546,4 +546,130 @@ class STU_Import_Tool {
             update_post_meta( $post_id, '_stu_imported_hashes', $imported_hashes );
         }
     }
+
+    /**
+     * Localize images from sections and template.
+     *
+     * @param array $sections   Array of sections (by reference).
+     */
+    public static function localize_images( &$sections ) {
+        if ( ! function_exists( 'media_handle_sideload' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/image.php';
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+            require_once ABSPATH . 'wp-admin/includes/media.php';
+        }
+
+        // Keep track of downloaded URLs to avoid duplicates in the same import
+        $download_map = array();
+
+        foreach ( $sections as &$section ) {
+            // 1. Process elements (Images, primarily)
+            foreach ( $section['elements'] as &$el ) {
+                if ( 'ux_field_image' === $el['type'] && ! empty( $el['src'] ) ) {
+                    $new_url = self::maybe_download_image( $el['src'], $download_map );
+                    if ( $new_url ) {
+                        $el['src'] = $new_url;
+                    }
+                }
+            }
+
+            // 2. Process Template (for background images or inline <img> not parsed)
+            // Regex to find src="..." or url(...)
+            $section['template'] = preg_replace_callback(
+                '/(src|url)=["\']?([^"\')\s>]+)["\']?/i',
+                function( $matches ) use ( &$download_map ) {
+                    $attr = $matches[1];
+                    $url = $matches[2];
+                    
+                    // Skip if it's already a local URL or a placeholder
+                    if ( strpos( $url, 'http' ) !== 0 && strpos( $url, 'data:image' ) !== 0 ) {
+                        return $matches[0];
+                    }
+
+                    $new_url = self::maybe_download_image( $url, $download_map );
+                    if ( $new_url ) {
+                        $quote = substr( $matches[0], strlen( $attr . '=' ), 1 );
+                        if ( $quote !== '"' && $quote !== "'" ) { $quote = '"'; }
+                        return $attr . '=' . $quote . $new_url . $quote;
+                    }
+
+                    return $matches[0];
+                },
+                $section['template']
+            );
+        }
+    }
+
+    /**
+     * Download or process an image to Media Library.
+     *
+     * @param string $url          Remote URL or Base64 string.
+     * @param array  $download_map Cache of downloads.
+     * @return string|bool New URL or false.
+     */
+    private static function maybe_download_image( $url, &$download_map ) {
+        if ( isset( $download_map[ $url ] ) ) {
+            return $download_map[ $url ];
+        }
+
+        $is_base64 = ( strpos( $url, 'data:image' ) === 0 );
+        $filename = '';
+        $temp_file = '';
+
+        if ( $is_base64 ) {
+            // data:image/jpeg;base64,...
+            if ( ! preg_match( '/data:image\/([a-z+]+);base64,(.*)/i', $url, $matches ) ) {
+                return false;
+            }
+            $ext = $matches[1];
+            if ( 'svg+xml' === $ext ) { $ext = 'svg'; }
+            $data = base64_decode( $matches[2] );
+            $filename = md5( $url ) . '.' . $ext;
+            
+            $temp_file = wp_tempnam( $filename );
+            file_put_contents( $temp_file, $data );
+        } else {
+            // External URL
+            $ext = pathinfo( parse_url( $url, PHP_URL_PATH ), PATHINFO_EXTENSION );
+            if ( ! $ext ) { $ext = 'jpg'; }
+            $filename = md5( $url ) . '.' . $ext;
+
+            // Use WordPress download helper
+            $temp_file = download_url( $url );
+            if ( is_wp_error( $temp_file ) ) {
+                return false;
+            }
+        }
+
+        // Upload to Media Library
+        $file_array = array(
+            'name'     => $filename,
+            'tmp_name' => $temp_file,
+        );
+
+        // Allow SVG uploads temporarily
+        add_filter( 'upload_mimes', array( __CLASS__, 'allow_svg_upload' ) );
+        
+        $id = media_handle_sideload( $file_array, 0 );
+        
+        remove_filter( 'upload_mimes', array( __CLASS__, 'allow_svg_upload' ) );
+
+        if ( is_wp_error( $id ) ) {
+            @unlink( $temp_file );
+            return false;
+        }
+
+        $new_url = wp_get_attachment_url( $id );
+        $download_map[ $url ] = $new_url;
+        
+        return $new_url;
+    }
+
+    /**
+     * Filter to allow SVG uploads.
+     */
+    public static function allow_svg_upload( $mimes ) {
+        $mimes['svg'] = 'image/svg+xml';
+        return $mimes;
+    }
 }

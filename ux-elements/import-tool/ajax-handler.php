@@ -140,6 +140,12 @@ function stu_ajax_confirm_import() {
         unset( $section, $element );
     }
 
+    // 3. Localize Images if requested
+    $download_images = isset( $_POST['download_images'] ) && '1' === $_POST['download_images'];
+    if ( $download_images ) {
+        STU_Import_Tool::localize_images( $sections );
+    }
+
     // Generate multi-shortcode
     $final_shortcode = '';
     foreach ( $sections as $section ) {

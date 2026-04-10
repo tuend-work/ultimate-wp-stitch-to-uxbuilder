@@ -110,13 +110,20 @@ function stu_render_import_meta_box( $post ) {
 
         <!-- Settings -->
         <div class="stu-settings" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;">
-            <?php $pure_mode = get_post_meta( $post->ID, 'stu_pure_mode', true ); ?>
-            <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600;">
-                <input type="checkbox" name="stu_pure_mode" value="1" <?php checked( $pure_mode, '1' ); ?> style="margin-right: 10px;" />
-                <?php esc_html_e( 'Pure Mode (Blank Canvas)', 'stitch-to-uxbuilder' ); ?>
-            </label>
-            <p class="description" style="margin-top: 5px; margin-left: 28px;">
-                <?php esc_html_e( 'If enabled, all other theme and plugin CSS/JS will be dequeued on this page for a clean landing page environment.', 'stitch-to-uxbuilder' ); ?>
+            <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+                <?php $pure_mode = get_post_meta( $post->ID, 'stu_pure_mode', true ); ?>
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600;">
+                    <input type="checkbox" name="stu_pure_mode" value="1" <?php checked( $pure_mode, '1' ); ?> style="margin-right: 10px;" />
+                    <?php esc_html_e( 'Pure Mode (Blank Canvas)', 'stitch-to-uxbuilder' ); ?>
+                </label>
+
+                <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600;">
+                    <input type="checkbox" id="stu-download-images" value="1" style="margin-right: 10px;" />
+                    <?php esc_html_e( 'Download Images to Media Library', 'stitch-to-uxbuilder' ); ?>
+                </label>
+            </div>
+            <p class="description" style="margin-top: 10px;">
+                <?php esc_html_e( 'Pure Mode hides theme assets. Download Images will localize external and base64 images to your site.', 'stitch-to-uxbuilder' ); ?>
             </p>
         </div>
     </div>
