@@ -1,25 +1,16 @@
 <?php
 /**
  * Ultimate Section — Container element with slot-based template system.
- *
- * @package StitchToUXBuilder
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-/**
- * Render the [ux_ultimate_section] shortcode.
- *
- * @param array  $atts    Shortcode attributes.
- * @param string $content Shortcode inner content (child elements).
- * @return string Rendered HTML.
- */
 function stu_render_ultimate_section( $atts, $content = null ) {
     $atts = shortcode_atts(
         array(
-            'html_template' => '',
+            'template_id'   => '',
             'tag'           => 'div',
             'css_class'     => '',
             'visibility'    => '',
@@ -28,12 +19,18 @@ function stu_render_ultimate_section( $atts, $content = null ) {
         'ux_ultimate_section'
     );
 
-    // 1. Extract the Template from content
-    $template = preg_replace( '/\[ux_field_(text|image|link)[\s\S]*?\]/i', '', $content );
-    $template = trim( $template );
+    $template = '';
+    
+    // 1. Get Template from Meta (Primary) or content (Fallback)
+    if ( ! empty( $atts['template_id'] ) ) {
+        $post_id = get_the_ID();
+        $template = get_post_meta( $post_id, 'stu-template-' . $atts['template_id'], true );
+    }
 
-    if ( empty( $template ) && ! empty( $atts['html_template'] ) ) {
-        $template = rawurldecode( $atts['html_template'] );
+    if ( empty( $template ) ) {
+        // Fallback to searching in the content if meta is missing
+        $template = preg_replace( '/\[ux_field_(text|image|link)[\s\S]*?\]/i', '', $content );
+        $template = trim( $template );
     }
 
     if ( empty( $template ) ) {
@@ -48,26 +45,22 @@ function stu_render_ultimate_section( $atts, $content = null ) {
         $template = str_replace( '{{' . $slot_name . '}}', $html, $template );
     }
 
-    // 4. Fallback: remaining {{slot}} → replace with default_content from child elements
+    // 4. Fallback: remaining {{slot}} → replace with default_content
     $template = stu_replace_remaining_slots_with_defaults( $template, $content );
 
-    // 5. Slots with no default → replace with empty string
+    // 5. Cleanup
     $template = preg_replace( '/\{\{[a-z0-9_]+\}\}/', '', $template );
 
-    // Allowed wrapper tags
     $allowed_tags = array( 'div', 'section', 'article', 'header', 'footer', 'nav', 'aside', 'main' );
     $tag = in_array( $atts['tag'], $allowed_tags, true ) ? $atts['tag'] : 'div';
 
-    // Build class attribute
     $class = stu_sanitize_css_class( $atts['css_class'] );
     $class_attr = $class ? ' class="' . esc_attr( $class ) . '"' : '';
 
-    // If we are in UX Builder, strip <script> tags to prevent execution errors in editor
     if ( function_exists( 'is_ux_builder' ) && is_ux_builder() ) {
         $template = preg_replace( '/<script\b[^>]*>([\s\S]*?)<\/script>/i', '<!-- Script removed in editor -->', $template );
     }
 
-    // Final render - Avoid wpautop or any content filters that might break SVG/HTML structure
     $output = '<' . $tag . $class_attr . '>' . wp_kses( $template, stu_get_allowed_slot_html() ) . '</' . $tag . '>';
     
     return $output;

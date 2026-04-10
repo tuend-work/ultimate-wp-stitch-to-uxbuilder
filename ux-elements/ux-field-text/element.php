@@ -34,21 +34,6 @@ function stu_render_field_text( $atts, $content = null ) {
     // Determine output value
     $output = $atts['value'];
 
-    // Dynamic source resolution
-    if ( '1' === $atts['dynamic_enabled'] && ! empty( $atts['dynamic_source'] ) ) {
-        $dynamic_value = STU_Dynamic_Resolver::resolve( $atts['dynamic_source'] );
-        if ( ! empty( $dynamic_value ) ) {
-            $output = $dynamic_value;
-        }
-        // Fallback to static value if dynamic returns empty
-    }
-
-    // If no output at all, return empty string
-    if ( '' === $output && empty( $content ) ) {
-        return '';
-    }
-
-    // Allow inner content as fallback
     if ( '' === $output && ! empty( $content ) ) {
         $output = $content;
     }

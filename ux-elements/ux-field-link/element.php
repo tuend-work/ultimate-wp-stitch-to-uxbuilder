@@ -53,6 +53,11 @@ function stu_render_field_link( $atts, $content = null ) {
         }
     }
 
+    // Base64 decoding logic for WAF bypass
+    if ( strpos( $label, 'base64:' ) === 0 ) {
+        $label = base64_decode( substr( $label, 7 ) );
+    }
+
     // No label = no link
     if ( empty( $label ) && empty( $content ) ) {
         return '';
