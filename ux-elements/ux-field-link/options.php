@@ -14,8 +14,7 @@ add_ux_builder_shortcode( 'ux_field_link', array(
     'category' => __( 'Stitch Elements', 'stitch-to-uxbuilder' ),
     'info'     => '{{ label }}',
     'icon'     => 'dashicons-admin-links',
-    'parent'   => array( 'ux_ultimate_section' ),
-    'wrap'     => false,
+    'wrap'     => true,
     'options'  => array(
         'slot' => array(
             'type'    => 'textfield',

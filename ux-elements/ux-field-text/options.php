@@ -14,7 +14,6 @@ add_ux_builder_shortcode( 'ux_field_text', array(
     'category' => __( 'Stitch Elements', 'stitch-to-uxbuilder' ),
     'info'     => '{{ value }}',
     'icon'     => 'dashicons-editor-textcolor',
-    'parent'   => array( 'ux_ultimate_section' ),
     'wrap'     => false,
     'options'  => array(
         'slot' => array(

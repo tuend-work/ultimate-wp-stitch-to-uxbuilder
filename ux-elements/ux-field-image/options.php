@@ -14,7 +14,6 @@ add_ux_builder_shortcode( 'ux_field_image', array(
     'category' => __( 'Stitch Elements', 'stitch-to-uxbuilder' ),
     'info'     => '{{ alt }}',
     'icon'     => 'dashicons-format-image',
-    'parent'   => array( 'ux_ultimate_section' ),
     'wrap'     => false,
     'options'  => array(
         'slot' => array(

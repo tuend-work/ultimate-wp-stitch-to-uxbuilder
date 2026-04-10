@@ -493,8 +493,8 @@ class STU_Import_Tool {
             }
         }
 
-        // NO WRAPPING: The recursive parser already wrapped everything in ux_html_node
-        return $content;
+        // Return the content wrapped in an Ultimate Section for Builder stability
+        return '[ux_ultimate_section tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . '"]' . "\n" . $content . "\n" . '[/ux_ultimate_section]';
     }
 
     /**
