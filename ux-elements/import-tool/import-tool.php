@@ -476,7 +476,7 @@ class STU_Import_Tool {
         $content = $parsed['template'];
         $elements = isset( $parsed['elements'] ) ? $parsed['elements'] : array();
 
-        // Apply dynamic overrides to the content string if present
+        // Apply dynamic overrides to the content string
         foreach ( $elements as $el ) {
             if ( isset( $el['dynamic_enabled'] ) && '1' === $el['dynamic_enabled'] ) {
                 $slot_attr = 'slot="' . $el['slot'] . '"';
@@ -493,8 +493,8 @@ class STU_Import_Tool {
             }
         }
 
-        // Wrap the whole nested structure in one Ultimate Section for asset management
-        return '[ux_ultimate_section tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . ' STU_STAMP_2.0.1_ALPHA"]' . "\n" . $content . "\n" . '[/ux_ultimate_section]';
+        // NO WRAPPING: The recursive parser already wrapped everything in ux_html_node
+        return $content;
     }
 
     /**
