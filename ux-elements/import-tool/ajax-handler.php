@@ -102,7 +102,12 @@ function stu_ajax_confirm_import() {
     if ( ! empty( $_FILES['file'] ) && $_FILES['file']['error'] === UPLOAD_ERR_OK ) {
         $file_path = $_FILES['file']['tmp_name'];
         if ( preg_match( '/\.zip$/i', $_FILES['file']['name'] ) ) {
-            $sections = STU_Import_Tool::parse_zip( $file_path );
+            $result = STU_Import_Tool::parse_zip( $file_path );
+            if ( isset( $result['error'] ) ) {
+                wp_send_json_error( array( 'message' => $result['error'] ) );
+            }
+            $sections = $result['sections'];
+            $assets = $result['assets'];
         } else {
             $html = file_get_contents( $file_path );
             $result = STU_Import_Tool::parse_multi_sections( $html );
