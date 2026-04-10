@@ -55,7 +55,9 @@ function stu_handle_update() {
     require_once ABSPATH . 'wp-admin/includes/plugin.php';
     
     // ZIP URL from GitHub main branch
-    $github_zip_url = 'https://github.com/tuend-work/ultimate-wp-stitch-to-uxbuilder/archive/refs/heads/main.zip';
+    //$github_zip_url = 'https://github.com/tuend-work/ultimate-wp-stitch-to-uxbuilder/archive/refs/heads/main.zip';
+    $github_zip_url = 'https://github.com/tuend-work/ultimate-wp-stitch-to-uxbuilder/archive/refs/heads/2.0-alpha.zip';
+  
     $temp_file = download_url( $github_zip_url );
 
     if ( is_wp_error( $temp_file ) ) {
