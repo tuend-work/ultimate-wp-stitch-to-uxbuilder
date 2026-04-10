@@ -137,13 +137,21 @@ class STU_Import_Tool {
         return '[' . $sc_tag . ' ' . $attrs . ']' . $content . '[/' . $sc_tag . ']';
     }
 
+    public static function generate_multi_shortcode( $sections ) {
+        $output = '';
+        foreach ( $sections as $section ) {
+            $output .= self::generate_shortcode( $section );
+        }
+        return $output;
+    }
+
     public static function generate_shortcode( $parsed, $tag = 'div', $css_class = '' ) {
-        // Pure HTML Node mapping — no more Ultimate Section wrapper
+        // Pure HTML Node mapping
         return $parsed['template'];
     }
 
     public static function localize_images( &$sections ) {
-        // Implementation kept same as before but simplified
+        // Logic will be refined later, but method must exist to prevent 500
     }
 
     public static function record_import( $post_id, $html ) {}

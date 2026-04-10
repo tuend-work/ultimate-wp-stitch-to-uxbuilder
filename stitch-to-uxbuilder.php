@@ -46,7 +46,6 @@ function stu_init() {
     require_once STU_PLUGIN_DIR . 'ux-elements/html-node/element.php';
     require_once STU_PLUGIN_DIR . 'ux-elements/ux-field-image/element.php';
     require_once STU_PLUGIN_DIR . 'ux-elements/ux-field-link/element.php';
-    require_once STU_PLUGIN_DIR . 'ux-elements/ultimate-section/element.php';
 
     // Import tool (admin only)
     if ( is_admin() ) {
@@ -70,7 +69,6 @@ function stu_register_ux_elements() {
     require_once STU_PLUGIN_DIR . 'ux-elements/ux-field-image/options.php';
     require_once STU_PLUGIN_DIR . 'ux-elements/html-node/options.php';
     require_once STU_PLUGIN_DIR . 'ux-elements/ux-field-link/options.php';
-    require_once STU_PLUGIN_DIR . 'ux-elements/ultimate-section/options.php';
 }
 add_action( 'ux_builder_setup', 'stu_register_ux_elements' );
 

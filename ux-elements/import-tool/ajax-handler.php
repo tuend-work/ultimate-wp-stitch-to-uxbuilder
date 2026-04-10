@@ -60,11 +60,11 @@ function stu_ajax_preview_import() {
     // Check for duplicate (Disabled strictly for testing/resubmission)
     $is_duplicate = false;
 
-    // Count existing sections in the post
+    // Count existing HTML nodes in the post
     $existing_sections = 0;
     if ( $post_id > 0 ) {
         $current_content = get_post_field( 'post_content', $post_id );
-        $existing_sections = substr_count( $current_content, '[ux_ultimate_section' );
+        $existing_sections = substr_count( $current_content, '[ux_html_node' );
     }
 
     // Generate shortcode
