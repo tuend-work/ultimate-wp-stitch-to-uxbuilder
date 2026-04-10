@@ -26,7 +26,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 function stu_render_ultimate_section( $atts, $content = null ) {
     $atts = shortcode_atts(
         array(
-            'html_template' => '',
             'tag'           => 'div',
             'css_class'     => '',
             'visibility'    => '',
@@ -35,28 +34,22 @@ function stu_render_ultimate_section( $atts, $content = null ) {
         'ux_ultimate_section'
     );
 
-    $template = $atts['html_template'];
+    // 1. Extract the Template from content
+    // Remove all [ux_field_*] shortcodes to get the RAW HTML template
+    $template = preg_replace( '/\[ux_field_(text|image|link)[\s\S]*?\]/i', '', $content );
 
-    // If no template, just render children directly
-    if ( empty( $template ) ) {
-        return do_shortcode( $content );
-    }
-
-    // Decode the URL-encoded template attribute
-    $template = rawurldecode( $template );
-
-    // 1. Parse child elements and get slot => rendered_html
+    // 2. Parse child elements and get slot => rendered_html
     $slots = stu_parse_child_slots( $content );
 
-    // 2. Replace each {{slot}} in template with child-rendered HTML
+    // 3. Replace each {{slot}} in template with child-rendered HTML
     foreach ( $slots as $slot_name => $html ) {
         $template = str_replace( '{{' . $slot_name . '}}', $html, $template );
     }
 
-    // 3. Fallback: remaining {{slot}} → replace with default_content from child elements
+    // 4. Fallback: remaining {{slot}} → replace with default_content from child elements
     $template = stu_replace_remaining_slots_with_defaults( $template, $content );
 
-    // 4. Slots with no default → replace with empty string
+    // 5. Slots with no default → replace with empty string
     $template = preg_replace( '/\{\{[a-z0-9_]+\}\}/', '', $template );
 
     // Allowed wrapper tags

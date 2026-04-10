@@ -411,13 +411,15 @@ class STU_Import_Tool {
         $template = $parsed['template'];
         $elements = $parsed['elements'];
 
-        // Use rawurlencode for the template to avoid ALL shortcode attribute issues (including wpautop)
-        $template_encoded = rawurlencode( $template );
+        // Start opening tag (no html_template attribute anymore)
+        $shortcode = '[ux_ultimate_section tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . '"]' . "\n";
 
-        $shortcode = '[ux_ultimate_section html_template="' . $template_encoded . '" tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . '"]';
+        // Template is kept as RAW HTML in the content
+        $shortcode .= $template . "\n";
 
+        // Child shortcodes follow
         foreach ( $elements as $el ) {
-            $shortcode .= self::element_to_shortcode( $el );
+            $shortcode .= self::element_to_shortcode( $el ) . "\n";
         }
 
         $shortcode .= '[/ux_ultimate_section]';

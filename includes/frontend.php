@@ -65,6 +65,11 @@ add_action( 'wp_enqueue_scripts', 'stu_enqueue_dynamic_assets' );
  * Handle Pure Mode: Dequeue other assets if enabled.
  */
 function stu_handle_pure_mode() {
+    // DO NOT run pure mode if inside UX Builder editor
+    if ( isset( $_GET['uxbuilder'] ) || is_customize_preview() ) {
+        return;
+    }
+
     if ( ! is_singular() ) {
         return;
     }
