@@ -155,8 +155,16 @@ function stu_ajax_confirm_import() {
 
     // Add scope class to each section's wrapper_class
     foreach ( $sections as &$section ) {
-        $existing_class = isset( $section['wrapper_class'] ) ? $section['wrapper_class'] : '';
-        $section['wrapper_class'] = trim( $scope_id . ' ' . $existing_class );
+        $existing_classes = isset( $section['wrapper_class'] ) ? explode( ' ', $section['wrapper_class'] ) : array();
+        $prefixed_classes = array( $scope_id );
+
+        foreach ( $existing_classes as $c ) {
+            $c = trim( $c );
+            if ( ! empty( $c ) ) {
+                $prefixed_classes[] = $scope_id . '-' . $c;
+            }
+        }
+        $section['wrapper_class'] = implode( ' ', $prefixed_classes );
 
         // Prefix css_class of individual elements
         if ( ! empty( $section['elements'] ) ) {
