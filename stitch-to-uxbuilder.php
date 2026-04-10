@@ -3,7 +3,7 @@
  * Plugin Name: Stitch to UX Builder
  * Plugin URI: https://github.com/tuend-work/ultimate-wp-stitch-to-uxbuilder
  * Description: Import HTML from AI tools (Stitch, v0, Bolt…) into Flatsome UX Builder with dynamic data support. Adds ultimate_section container and child elements (text, image, link) with slot-based template system.
- * Version: 1.0.0
+ * Version: 1.0.1
  * Author: Tuend Work
  * Author URI: https://tuend.work
  * License: GPL-2.0-or-later
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants
-define( 'STU_VERSION', '1.0.0' );
+define( 'STU_VERSION', '1.0.1' );
 define( 'STU_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'STU_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'STU_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );

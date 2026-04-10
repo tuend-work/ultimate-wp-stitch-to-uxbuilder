@@ -4,7 +4,7 @@ Tags: flatsome, ux-builder, html-import, stitch, dynamic-content
 Requires at least: 5.8
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -58,6 +58,12 @@ No. Import always **appends** to existing post content. Duplicate detection prev
 Dynamic sources use `get_the_ID()` internally, so they automatically resolve to the current post/product in WooCommerce or post loops.
 
 == Changelog ==
+
+= 1.0.1 =
+* Added support for ZIP file imports.
+* Added auto-splitting logic to decompose complex HTML into multiple sections.
+* Improved AJAX file handling using FormData.
+* Refined preview UI to display multi-section tables.
 
 = 1.0.0 =
 * Initial release
