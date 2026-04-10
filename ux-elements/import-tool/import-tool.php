@@ -164,23 +164,23 @@ class STU_Import_Tool {
         }
 
         $counters = array( 'img' => 0, 'text' => 0, 'link' => 0, 'heading' => 0, 'span' => 0 );
-        $template = self::process_node_to_shortcodes( $body, $counters, $dom );
+        $elements = array();
+        $template = self::process_node_to_shortcodes( $body, $counters, $dom, $elements );
 
         return array(
             'template' => $template,
-            'elements' => array(), // Elements are baked into the template now
+            'elements' => $elements,
         );
     }
 
     /**
      * Recursive processor to convert ALL nodes to shortcodes.
      */
-    private static function process_node_to_shortcodes( $node, &$counters, $dom ) {
+    private static function process_node_to_shortcodes( $node, &$counters, $dom, &$elements ) {
         $shortcode = '';
 
         foreach ( $node->childNodes as $child ) {
             if ( $child->nodeType === XML_TEXT_NODE ) {
-                $text = bin2hex( $child->textContent ); // Temporary hex escape for safety? No.
                 $shortcode .= $child->textContent;
                 continue;
             }
@@ -202,15 +202,15 @@ class STU_Import_Tool {
             }
 
             // Map standard elements to specialized shortcodes
-            $special = self::try_map_special_element( $child, $tag_name, $counters, $dom );
+            $special = self::try_map_special_element( $child, $tag_name, $counters, $dom, $elements );
             if ( $special ) {
                 $shortcode .= $special;
                 continue;
             }
 
             // Generic mapping to ux_html_node
-            $inner = self::process_node_to_shortcodes( $child, $counters, $dom );
-            $shortcode .= self::build_html_node_shortcode( $child, $inner );
+            $inner = self::process_node_to_shortcodes( $child, $counters, $dom, $elements );
+            $shortcode .= self::build_html_node_shortcode( $child, $inner, $counters, $elements );
         }
 
         return $shortcode;
@@ -219,26 +219,70 @@ class STU_Import_Tool {
     /**
      * Try to map an element to a specialized shortcode.
      */
-    private static function try_map_special_element( $node, $tag_name, &$counters, $dom ) {
+    private static function try_map_special_element( $node, $tag_name, &$counters, $dom, &$elements ) {
         if ( 'img' === $tag_name ) {
+            $counters['img']++;
+            $slot = 'image_' . $counters['img'];
+            
             $attrs = array(
+                'slot'      => $slot,
                 'src'       => $node->getAttribute( 'src' ),
                 'alt'       => $node->getAttribute( 'alt' ),
                 'css_class' => $node->getAttribute( 'class' ),
             );
+
+            $elements[] = array(
+                'type' => 'ux_field_image',
+                'slot' => $slot,
+                'src'  => $attrs['src'],
+                'alt'  => $attrs['alt'],
+            );
+
             return self::build_shortcode_tag( 'ux_field_image', $attrs );
         }
 
         if ( 'a' === $tag_name ) {
-            $inner = self::process_node_to_shortcodes( $node, $counters, $dom );
+            $counters['link']++;
+            $slot = 'link_' . $counters['link'];
+            $inner = self::process_node_to_shortcodes( $node, $counters, $dom, $elements );
+            
             $attrs = array(
+                'slot'      => $slot,
                 'href'      => $node->getAttribute( 'href' ),
                 'target'    => $node->getAttribute( 'target' ) ?: '_self',
                 'css_class' => $node->getAttribute( 'class' ),
             );
-            // Since it's a link element, we might want to put $inner as the label or content
-            // Let's use it as content for simplicity in this experiment
+
+            $elements[] = array(
+                'type'  => 'ux_field_link',
+                'slot'  => $slot,
+                'href'  => $attrs['href'],
+                'label' => $node->textContent, // Simplified for UI display
+            );
+
             return '[ux_field_link ' . self::attributes_to_string( $attrs ) . ']' . $inner . '[/ux_field_link]';
+        }
+
+        // Handle Text tags (p, h1-h6) as specialized ux_field_text for editing
+        if ( in_array( $tag_name, array( 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span' ), true ) ) {
+            $counters['text']++;
+            $slot = 'text_' . $counters['text'];
+            
+            $attrs = array(
+                'slot'      => $slot,
+                'tag'       => $tag_name,
+                'value'     => $node->textContent,
+                'css_class' => $node->getAttribute( 'class' ),
+            );
+
+            $elements[] = array(
+                'type'  => 'ux_field_text',
+                'slot'  => $slot,
+                'tag'   => $tag_name,
+                'value' => $attrs['value'],
+            );
+
+            return self::build_shortcode_tag( 'ux_field_text', $attrs );
         }
 
         return null;
@@ -247,7 +291,7 @@ class STU_Import_Tool {
     /**
      * Build [ux_html_node] shortcode for any element.
      */
-    private static function build_html_node_shortcode( $node, $content ) {
+    private static function build_html_node_shortcode( $node, $content, &$counters, &$elements ) {
         $tag = strtolower( $node->tagName );
         $class = $node->getAttribute( 'class' );
         $id = $node->getAttribute( 'id' );
@@ -474,6 +518,24 @@ class STU_Import_Tool {
      */
     public static function generate_shortcode( $parsed, $tag = 'div', $css_class = '' ) {
         $content = $parsed['template'];
+        $elements = isset( $parsed['elements'] ) ? $parsed['elements'] : array();
+
+        // Apply dynamic overrides to the content string if present
+        foreach ( $elements as $el ) {
+            if ( isset( $el['dynamic_enabled'] ) && '1' === $el['dynamic_enabled'] ) {
+                $slot_attr = 'slot="' . $el['slot'] . '"';
+                $dynamic_attrs = ' dynamic_enabled="1"';
+                
+                if ( ! empty( $el['dynamic_source'] ) ) {
+                    $dynamic_attrs .= ' dynamic_source="' . esc_attr( $el['dynamic_source'] ) . '"';
+                }
+                if ( ! empty( $el['dynamic_href'] ) ) {
+                    $dynamic_attrs .= ' dynamic_href="' . esc_attr( $el['dynamic_href'] ) . '"';
+                }
+
+                $content = str_replace( $slot_attr, $slot_attr . $dynamic_attrs, $content );
+            }
+        }
 
         // Wrap the whole nested structure in one Ultimate Section for asset management
         return '[ux_ultimate_section tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . '"]' . "\n" . $content . "\n" . '[/ux_ultimate_section]';

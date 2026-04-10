@@ -133,7 +133,12 @@ function stu_ajax_confirm_import() {
                 $slot = $element['slot'];
                 if ( isset( $dynamic_overrides[ $slot ] ) && ! empty( $dynamic_overrides[ $slot ] ) ) {
                     $element['dynamic_enabled'] = '1';
-                    $element['dynamic_source'] = sanitize_text_field( $dynamic_overrides[ $slot ] );
+                    $val = sanitize_text_field( $dynamic_overrides[ $slot ] );
+                    if ( 'ux_field_link' === $element['type'] ) {
+                        $element['dynamic_href'] = $val;
+                    } else {
+                        $element['dynamic_source'] = $val;
+                    }
                 }
             }
         }
@@ -146,11 +151,10 @@ function stu_ajax_confirm_import() {
         STU_Import_Tool::localize_images( $sections );
     }
 
-    // Generate final shortcodes using the new recursive parser
+    // Generate final shortcodes using the already parsed data
     $final_shortcode = '';
-    foreach ( $sections as $section_html ) {
-        $parsed = STU_Import_Tool::parse_html( $section_html );
-        $final_shortcode .= STU_Import_Tool::generate_shortcode( $parsed ) . "\n";
+    foreach ( $sections as $section_data ) {
+        $final_shortcode .= STU_Import_Tool::generate_shortcode( $section_data ) . "\n";
     }
 
     // Append to post content
