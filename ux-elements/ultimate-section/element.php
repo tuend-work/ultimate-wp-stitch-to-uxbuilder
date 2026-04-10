@@ -47,6 +47,9 @@ function stu_render_ultimate_section( $atts, $content = null ) {
 
     // Still empty? Show children directly as a last resort
     if ( empty( $template ) ) {
+        if ( function_exists( 'is_ux_builder' ) && is_ux_builder() ) {
+            return '<div class="stu-empty-placeholder">' . __( 'Ultimate Section: Template is empty. Please check your HTML import.', 'stitch-to-uxbuilder' ) . '</div>';
+        }
         return do_shortcode( $content );
     }
 
@@ -71,6 +74,12 @@ function stu_render_ultimate_section( $atts, $content = null ) {
     // Build class attribute
     $class = stu_sanitize_css_class( $atts['css_class'] );
     $class_attr = $class ? ' class="' . esc_attr( $class ) . '"' : '';
+
+    // If we are in UX Builder, strip <script> tags to prevent execution errors in editor
+    // This fixed the "mobileBtn is null" and "isVisible" crashes.
+    if ( function_exists( 'is_ux_builder' ) && is_ux_builder() ) {
+        $template = preg_replace( '/<script\b[^>]*>([\s\S]*?)<\/script>/i', '<!-- Script removed in editor to prevent crash -->', $template );
+    }
 
     // Final render - Avoid wpautop or any content filters that might break SVG/HTML structure
     $output = '<' . $tag . $class_attr . '>' . wp_kses( $template, stu_get_allowed_slot_html() ) . '</' . $tag . '>';

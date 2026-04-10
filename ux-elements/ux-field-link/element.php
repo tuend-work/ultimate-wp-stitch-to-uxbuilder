@@ -55,7 +55,11 @@ function stu_render_field_link( $atts, $content = null ) {
 
     // No label = no link
     if ( empty( $label ) && empty( $content ) ) {
-        return '';
+        if ( function_exists( 'is_ux_builder' ) && is_ux_builder() ) {
+            $label = __( 'Empty Link', 'stitch-to-uxbuilder' );
+        } else {
+            return '';
+        }
     }
 
     if ( empty( $label ) && ! empty( $content ) ) {

@@ -43,9 +43,13 @@ function stu_render_field_text( $atts, $content = null ) {
         // Fallback to static value if dynamic returns empty
     }
 
-    // If no output at all, return empty string
+    // If no output at all, ensure we return something for UX Builder to grab onto
     if ( '' === $output && empty( $content ) ) {
-        return '';
+        if ( function_exists( 'is_ux_builder' ) && is_ux_builder() ) {
+            $output = '&nbsp;'; // Placeholder for editor
+        } else {
+            return '';
+        }
     }
 
     // Allow inner content as fallback
