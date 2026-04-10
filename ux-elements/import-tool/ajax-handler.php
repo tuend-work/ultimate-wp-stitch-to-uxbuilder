@@ -112,6 +112,8 @@ function stu_ajax_confirm_import() {
     }
 
     // Apply dynamic source overrides
+    $dynamic_overrides = isset( $_POST['dynamic_sources'] ) ? json_decode( wp_unslash( $_POST['dynamic_sources'] ), true ) : array();
+
     if ( is_array( $dynamic_overrides ) && ! empty( $dynamic_overrides ) ) {
         foreach ( $sections as &$section ) {
             foreach ( $section['elements'] as &$element ) {

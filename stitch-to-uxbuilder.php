@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants
-define( 'STU_VERSION', '1.0.3' );
+define( 'STU_VERSION', '1.0.4' );
 define( 'STU_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'STU_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'STU_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
@@ -39,6 +39,7 @@ function stu_is_flatsome_active() {
 function stu_init() {
     // Load helpers
     require_once STU_PLUGIN_DIR . 'includes/helpers.php';
+    require_once STU_PLUGIN_DIR . 'includes/frontend.php';
     require_once STU_PLUGIN_DIR . 'includes/class-dynamic-resolver.php';
 
     // Register shortcodes (always, so content renders on frontend)
