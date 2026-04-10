@@ -65,6 +65,10 @@ class STU_Import_Tool {
             return array( 'sections' => array(), 'assets' => array() );
         }
 
+        // 0. Pre-process: Always convert inline SVG to persistent Media Files to prevent render issues
+        $dummy_map = array();
+        $html = self::process_svg_localization( $html, $dummy_map );
+
         $dom = new DOMDocument( '1.0', 'UTF-8' );
         libxml_use_internal_errors( true );
         // Wrap for fragmented HTML but handle full HTML too
