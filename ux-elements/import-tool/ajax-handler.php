@@ -53,15 +53,8 @@ function stu_ajax_preview_import() {
         wp_send_json_error( array( 'message' => __( 'No content found to parse.', 'stitch-to-uxbuilder' ) ) );
     }
 
-    // Check for duplicate (based on cumulative HTML if multi-section)
+    // Check for duplicate (Disabled strictly for testing/resubmission)
     $is_duplicate = false;
-    if ( $post_id > 0 ) {
-        $cumulative_html = '';
-        foreach ( $sections as $sec ) {
-            $cumulative_html .= $sec['template'];
-        }
-        $is_duplicate = STU_Import_Tool::is_duplicate( $post_id, $cumulative_html );
-    }
 
     // Count existing sections in the post
     $existing_sections = 0;
@@ -173,61 +166,52 @@ function stu_generate_shortcode_with_overrides( $parsed ) {
     $template = $parsed['template'];
     $elements = $parsed['elements'];
 
-    // Escape template for shortcode attribute
-    $template_escaped = str_replace( '"', '&quot;', $template );
+    // Normalize template: remove newlines to match the improved non-base64 standard
+    $template_safe = str_replace( array( "\r", "\n" ), ' ', $template );
+    $template_safe = preg_replace( '/\s+/', ' ', $template_safe );
 
-    $shortcode = '[ux_ultimate_section html_template="' . $template_escaped . '" tag="div" css_class=""]' . "\n";
+    $shortcode = '[ux_ultimate_section html_template="' . esc_attr( $template_safe ) . '" tag="div" css_class=""]';
 
     foreach ( $elements as $el ) {
         $type = $el['type'];
         $dynamic_enabled = isset( $el['dynamic_enabled'] ) && '1' === $el['dynamic_enabled'] ? '1' : '0';
         $dynamic_source = isset( $el['dynamic_source'] ) ? $el['dynamic_source'] : '';
 
+        $attrs = array(
+            'slot'            => $el['slot'],
+            'dynamic_enabled' => $dynamic_enabled,
+        );
+
         switch ( $type ) {
             case 'ux_field_image':
-                $attrs = 'slot="' . esc_attr( $el['slot'] ) . '"';
-                $attrs .= ' src="' . esc_attr( $el['src'] ?? '' ) . '"';
-                $attrs .= ' alt="' . esc_attr( $el['alt'] ?? '' ) . '"';
-                if ( ! empty( $el['css_class'] ) ) {
-                    $attrs .= ' css_class="' . esc_attr( $el['css_class'] ) . '"';
-                }
-                $attrs .= ' dynamic_enabled="' . $dynamic_enabled . '"';
+                $attrs['src'] = $el['src'] ?? '';
+                $attrs['alt'] = $el['alt'] ?? '';
+                if ( ! empty( $el['css_class'] ) ) { $attrs['css_class'] = $el['css_class']; }
                 if ( '1' === $dynamic_enabled && $dynamic_source ) {
-                    $attrs .= ' dynamic_source="' . esc_attr( $dynamic_source ) . '"';
+                    $attrs['dynamic_source'] = $dynamic_source;
                 }
-                $shortcode .= '  [ux_field_image ' . $attrs . ']' . "\n";
+                $shortcode .= stu_build_shortcode_tag_helper( 'ux_field_image', $attrs );
                 break;
 
             case 'ux_field_text':
-                $value = str_replace( '"', '&quot;', $el['value'] ?? '' );
-                $attrs = 'slot="' . esc_attr( $el['slot'] ) . '"';
-                $attrs .= ' tag="' . esc_attr( $el['tag'] ?? 'p' ) . '"';
-                $attrs .= ' value="' . $value . '"';
-                if ( ! empty( $el['css_class'] ) ) {
-                    $attrs .= ' css_class="' . esc_attr( $el['css_class'] ) . '"';
-                }
-                $attrs .= ' dynamic_enabled="' . $dynamic_enabled . '"';
+                $attrs['tag'] = $el['tag'] ?? 'p';
+                $attrs['value'] = $el['value'] ?? '';
+                if ( ! empty( $el['css_class'] ) ) { $attrs['css_class'] = $el['css_class']; }
                 if ( '1' === $dynamic_enabled && $dynamic_source ) {
-                    $attrs .= ' dynamic_source="' . esc_attr( $dynamic_source ) . '"';
+                    $attrs['dynamic_source'] = $dynamic_source;
                 }
-                $shortcode .= '  [ux_field_text ' . $attrs . ']' . "\n";
+                $shortcode .= stu_build_shortcode_tag_helper( 'ux_field_text', $attrs );
                 break;
 
             case 'ux_field_link':
-                $attrs = 'slot="' . esc_attr( $el['slot'] ) . '"';
-                $attrs .= ' href="' . esc_attr( $el['href'] ?? '#' ) . '"';
-                $label = str_replace( '"', '&quot;', $el['label'] ?? '' );
-                $attrs .= ' label="' . $label . '"';
-                $attrs .= ' target="' . esc_attr( $el['target'] ?? '_self' ) . '"';
-                if ( ! empty( $el['css_class'] ) ) {
-                    $attrs .= ' css_class="' . esc_attr( $el['css_class'] ) . '"';
-                }
-                $attrs .= ' dynamic_enabled="' . $dynamic_enabled . '"';
+                $attrs['href'] = $el['href'] ?? '#';
+                $attrs['label'] = $el['label'] ?? '';
+                $attrs['target'] = $el['target'] ?? '_self';
+                if ( ! empty( $el['css_class'] ) ) { $attrs['css_class'] = $el['css_class']; }
                 if ( '1' === $dynamic_enabled && $dynamic_source ) {
-                    // For links, the dynamic source maps to dynamic_href
-                    $attrs .= ' dynamic_href="' . esc_attr( $dynamic_source ) . '"';
+                    $attrs['dynamic_href'] = $dynamic_source;
                 }
-                $shortcode .= '  [ux_field_link ' . $attrs . ']' . "\n";
+                $shortcode .= stu_build_shortcode_tag_helper( 'ux_field_link', $attrs );
                 break;
         }
     }
@@ -235,4 +219,17 @@ function stu_generate_shortcode_with_overrides( $parsed ) {
     $shortcode .= '[/ux_ultimate_section]';
 
     return $shortcode;
+}
+
+/**
+ * Helper to build shortcode tags in AJAX handler.
+ */
+function stu_build_shortcode_tag_helper( $tag, $attrs ) {
+    $parts = array();
+    foreach ( $attrs as $key => $val ) {
+        if ( '' !== $val ) {
+            $parts[] = $key . '="' . esc_attr( $val ) . '"';
+        }
+    }
+    return '[' . $tag . ' ' . implode( ' ', $parts ) . ']';
 }

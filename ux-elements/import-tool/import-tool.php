@@ -409,10 +409,11 @@ class STU_Import_Tool {
         $template = $parsed['template'];
         $elements = $parsed['elements'];
 
-        // Use base64 for the template to avoid shortcode attribute parsing issues
-        $template_base64 = base64_encode( $template );
-
-        $shortcode = '[ux_ultimate_section html_template="' . $template_base64 . '" tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . '"]';
+        // Normalize template: remove newlines to prevent shortcode attribute breaking and wpautop issues
+        $template_safe = str_replace( array( "\r", "\n" ), ' ', $template );
+        $template_safe = preg_replace( '/\s+/', ' ', $template_safe );
+        
+        $shortcode = '[ux_ultimate_section html_template="' . esc_attr( $template_safe ) . '" tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . '"]';
 
         foreach ( $elements as $el ) {
             $shortcode .= self::element_to_shortcode( $el );
