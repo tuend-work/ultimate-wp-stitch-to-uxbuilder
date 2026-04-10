@@ -632,63 +632,30 @@ class STU_Import_Tool {
     }
 
     /**
-     * Helper to find and replace inline SVGs with <img> tags in a string.
+     * Clean up inline SVG code for safe inclusion in attributes/content.
      */
-    private static function process_svg_localization( $content, &$download_map ) {
+    private static function process_svg_localization( $content, &$download_map = array() ) {
         return preg_replace_callback(
             '/<svg\b[^>]*>([\s\S]*?)<\/svg>/i',
             function ( $matches ) use ( &$download_map ) {
                 $svg_code = $matches[0];
-                $hash = md5( $svg_code );
-
-                if ( isset( $download_map[ $hash ] ) ) {
-                    return '<img src="' . esc_attr( $download_map[ $hash ] ) . '" alt="" class="stu-stored-svg" />';
-                }
-
-                $new_url = self::save_inline_svg_to_media( $svg_code );
-                if ( $new_url ) {
-                    $download_map[ $hash ] = $new_url;
-                    return '<img src="' . esc_attr( $new_url ) . '" alt="" class="stu-stored-svg" />';
-                }
-
-                return $svg_code;
+                
+                // Clean the SVG: remove newlines, tabs, and excess whitespace
+                $clean_svg = preg_replace( '/\s+/', ' ', $svg_code ); // Multiple spaces/newlines to single space
+                $clean_svg = str_replace( array( "\r", "\n", "\t" ), '', $clean_svg );
+                $clean_svg = preg_replace( '/>\s+</', '><', $clean_svg ); // Remove space between tags
+                
+                return trim( $clean_svg );
             },
             $content
         );
     }
 
     /**
-     * Save an inline SVG string to the Media Library and return its URL.
-     *
-     * @param string $svg_code Full SVG code.
-     * @return string|bool URL of the uploaded SVG file or false.
+     * Obsolete - functionality removed as per user request to keep SVG inline.
      */
     private static function save_inline_svg_to_media( $svg_code ) {
-        $filename = 'svg-' . substr( md5( $svg_code ), 0, 8 ) . '.svg';
-        $temp_file = wp_tempnam( $filename );
-        
-        // Ensure XML header exists for validity
-        if ( strpos( $svg_code, '<?xml' ) === false ) {
-            $svg_code = '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . $svg_code;
-        }
-        
-        file_put_contents( $temp_file, $svg_code );
-
-        $file_array = array(
-            'name'     => $filename,
-            'tmp_name' => $temp_file,
-        );
-
-        add_filter( 'upload_mimes', array( __CLASS__, 'allow_svg_upload' ) );
-        $id = media_handle_sideload( $file_array, 0 );
-        remove_filter( 'upload_mimes', array( __CLASS__, 'allow_svg_upload' ) );
-
-        if ( is_wp_error( $id ) ) {
-            @unlink( $temp_file );
-            return false;
-        }
-
-        return wp_get_attachment_url( $id );
+        return false;
     }
 
     /**
