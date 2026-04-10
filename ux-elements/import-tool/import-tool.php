@@ -55,6 +55,57 @@ class STU_Import_Tool {
     }
 
     /**
+     * Identify assets (images, styles, scripts) in the provided HTML.
+     *
+     * @param string $html HTML content.
+     * @return array Array of identified assets.
+     */
+    public static function identify_assets( $html ) {
+        $assets = array(
+            'images'  => array(),
+            'styles'  => array(),
+            'scripts' => array(),
+        );
+
+        if ( empty( $html ) ) {
+            return $assets;
+        }
+
+        // Identify Images (Skip SVGs for sideload because we keep them inline)
+        preg_match_all( '/src=["\']([^"\']+\.(jpg|jpeg|png|gif|webp)(?:\?[^"\']*)?)["\']/i', $html, $img_matches );
+        if ( ! empty( $img_matches[1] ) ) {
+            $assets['images'] = array_unique( $img_matches[1] );
+        }
+
+        // Identify Inline Styles
+        preg_match_all( '/<style\b[^>]*>([\s\S]*?)<\/style>/i', $html, $style_matches );
+        if ( ! empty( $style_matches[1] ) ) {
+            foreach ( $style_matches[1] as $content ) {
+                $assets['styles'][] = array(
+                    'type'    => 'inline',
+                    'content' => trim( $content ),
+                );
+            }
+        }
+
+        // Identify Inline Scripts
+        preg_match_all( '/<script\b[^>]*>([\s\S]*?)<\/script>/i', $html, $script_matches );
+        if ( ! empty( $script_matches[1] ) ) {
+            foreach ( $script_matches[1] as $content ) {
+                $content = trim( $content );
+                if ( ! empty( $content ) ) {
+                    $assets['scripts'][] = array(
+                        'type'    => 'inline',
+                        'content' => $content,
+                    );
+                }
+            }
+        }
+
+        return $assets;
+    }
+
+    /**
      * Parse HTML and split it into multiple ultimate_section blocks.
      *
      * @param string $html Raw HTML content.
@@ -65,9 +116,8 @@ class STU_Import_Tool {
             return array( 'sections' => array(), 'assets' => array() );
         }
 
-        // 0. Pre-process: Always convert inline SVG to persistent Media Files to prevent render issues
-        $dummy_map = array();
-        $html = self::process_svg_localization( $html, $dummy_map );
+        // 0. Pre-process: Clean/Minify inline SVGs
+        $html = self::process_svg_localization( $html );
 
         $dom = new DOMDocument( '1.0', 'UTF-8' );
         libxml_use_internal_errors( true );
@@ -75,28 +125,28 @@ class STU_Import_Tool {
         $dom->loadHTML( '<?xml encoding="UTF-8">' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
         libxml_clear_errors();
 
-        $assets = array( 'styles' => array(), 'scripts' => array() );
+        $sections = array();
+        
+        // Initial parse - find sections at depth 1
+        $body = $dom->getElementsByTagName( 'body' )->item( 0 );
+        if ( ! $body ) { $body = $dom; }
 
-        // 1. Collect all styles
-        $style_nodes = $dom->getElementsByTagName( 'style' );
-        foreach ( $style_nodes as $node ) {
-            $assets['styles'][] = array( 'type' => 'inline', 'content' => $node->textContent );
-        }
+        $counters = array( 'text' => 0, 'img' => 0, 'link' => 0 );
+        $sections_data = self::process_node( $body, $counters, $dom );
+        
+        // Split template into multiple sections if needed (dummy logic for now, one section)
+        $sections[] = array(
+            'template'     => $sections_data['template'],
+            'elements'     => $sections_data['elements'],
+            'wrapper_tag'  => 'div',
+            'wrapper_class'=> 'ultimate-section',
+        );
 
-        // 2. Collect all link[rel=stylesheet]
-        $link_nodes = $dom->getElementsByTagName( 'link' );
-        foreach ( $link_nodes as $node ) {
-            if ( 'stylesheet' === strtolower( $node->getAttribute( 'rel' ) ) ) {
-                $assets['styles'][] = array( 'type' => 'external', 'src' => $node->getAttribute( 'href' ) );
-            }
-        }
-
-        // 3. Collect all scripts
-        $script_nodes = $dom->getElementsByTagName( 'script' );
-        foreach ( $script_nodes as $node ) {
-            if ( $node->hasAttribute( 'src' ) ) {
-                $assets['scripts'][] = array( 'type' => 'external', 'src' => $node->getAttribute( 'src' ) );
-            } else {
+        return array(
+            'sections' => $sections,
+            'assets'   => self::identify_assets( $html ),
+        );
+    }
                 $assets['scripts'][] = array( 'type' => 'inline', 'content' => $node->textContent );
             }
         }

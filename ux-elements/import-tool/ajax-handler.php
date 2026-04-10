@@ -193,6 +193,28 @@ function stu_ajax_confirm_import() {
         $final_shortcode .= stu_generate_shortcode_with_overrides( $section ) . "\n";
     }
 
+    // 5. Consolidate ALL assets from all sections for saving
+    $all_assets = array( 'styles' => array(), 'scripts' => array() );
+    foreach ( $sections as $index => $section ) {
+        $sid = 'stu-' . substr( md5( ! empty( $section['template'] ) ? $section['template'] : serialize( $section['elements'] ) ), 0, 8 );
+        $section_assets = STU_Import_Tool::identify_assets( $section['template'] );
+        
+        // Scope inline styles before adding to global list
+        if ( ! empty( $section_assets['styles'] ) ) {
+            foreach ( $section_assets['styles'] as $st ) {
+                if ( 'inline' === $st['type'] ) {
+                    $st['content'] = STU_Import_Tool::scope_css( $st['content'], $sid );
+                }
+                $all_assets['styles'][] = $st;
+            }
+        }
+        if ( ! empty( $section_assets['scripts'] ) ) {
+            foreach ( $section_assets['scripts'] as $sc ) {
+                $all_assets['scripts'][] = $sc;
+            }
+        }
+    }
+
     // Append to post content
     $current_content = get_post_field( 'post_content', $post_id );
     $updated_content = trim( $current_content ) . "\n" . trim( $final_shortcode );
@@ -206,36 +228,24 @@ function stu_ajax_confirm_import() {
         wp_send_json_error( array( 'message' => $result->get_error_message() ) );
     }
 
-    // 5. Process and save Styles (scoped)
-    if ( ! empty( $assets['styles'] ) ) {
-        foreach ( $assets['styles'] as $style ) {
-            $is_ext = ( 'external' === $style['type'] );
-            $content = $is_ext ? $style['src'] : $style['content'];
-
-            // Scope inline CSS selectors to prevent conflicts
-            if ( ! $is_ext ) {
-                $content = STU_Import_Tool::scope_css( $content, $scope_id );
-            }
-
-            $hash     = substr( md5( $content ), 0, 8 );
-            $type_tag = $is_ext ? 'ext' : 'inline';
-
-            $meta_key = sprintf( 'stu-style-%s-%s', $type_tag, $hash );
-            update_post_meta( $post_id, $meta_key, $content );
-        }
+    // 6. Process and save Styles
+    foreach ( $all_assets['styles'] as $style ) {
+        $is_ext = ( 'external' === $style['type'] );
+        $content = $is_ext ? $style['src'] : $style['content'];
+        $hash     = substr( md5( $content ), 0, 8 );
+        $type_tag = $is_ext ? 'ext' : 'inline';
+        $meta_key = sprintf( 'stu-style-%s-%s', $type_tag, $hash );
+        update_post_meta( $post_id, $meta_key, $content );
     }
 
-    // 2. Process and save Scripts
-    if ( ! empty( $assets['scripts'] ) ) {
-        foreach ( $assets['scripts'] as $script ) {
-            $is_ext = ( 'external' === $script['type'] );
-            $content = $is_ext ? $script['src'] : $script['content'];
-            $hash = substr( md5( $content ), 0, 8 );
-            $type_tag = $is_ext ? 'ext' : 'inline';
-
-            $meta_key = sprintf( 'stu-script-%s-%s', $type_tag, $hash );
-            update_post_meta( $post_id, $meta_key, $content );
-        }
+    // 7. Process and save Scripts
+    foreach ( $all_assets['scripts'] as $script ) {
+        $is_ext = ( 'external' === $script['type'] );
+        $content = $is_ext ? $script['src'] : $script['content'];
+        $hash = substr( md5( $content ), 0, 8 );
+        $type_tag = $is_ext ? 'ext' : 'inline';
+        $meta_key = sprintf( 'stu-script-%s-%s', $type_tag, $hash );
+        update_post_meta( $post_id, $meta_key, $content );
     }
 
     // Record import hash for the overall content
