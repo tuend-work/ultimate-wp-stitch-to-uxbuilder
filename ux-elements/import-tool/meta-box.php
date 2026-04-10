@@ -107,6 +107,18 @@ function stu_render_import_meta_box( $post ) {
         <div id="stu-status" class="stu-status" style="display:none;"></div>
 
         <input type="hidden" id="stu-post-id" value="<?php echo esc_attr( $post->ID ); ?>" />
+
+        <!-- Settings -->
+        <div class="stu-settings" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid #ddd;">
+            <?php $pure_mode = get_post_meta( $post->ID, 'stu_pure_mode', true ); ?>
+            <label style="display: flex; align-items: center; cursor: pointer; font-weight: 600;">
+                <input type="checkbox" name="stu_pure_mode" value="1" <?php checked( $pure_mode, '1' ); ?> style="margin-right: 10px;" />
+                <?php esc_html_e( 'Pure Mode (Blank Canvas)', 'stitch-to-uxbuilder' ); ?>
+            </label>
+            <p class="description" style="margin-top: 5px; margin-left: 28px;">
+                <?php esc_html_e( 'If enabled, all other theme and plugin CSS/JS will be dequeued on this page for a clean landing page environment.', 'stitch-to-uxbuilder' ); ?>
+            </p>
+        </div>
     </div>
     <?php
 }
@@ -179,3 +191,30 @@ function stu_enqueue_import_assets( $hook_suffix ) {
     ) );
 }
 add_action( 'admin_enqueue_scripts', 'stu_enqueue_import_assets' );
+
+/**
+ * Save meta box data.
+ *
+ * @param int $post_id Post ID.
+ */
+function stu_save_import_tool_meta( $post_id ) {
+    // Verify nonce
+    if ( ! isset( $_POST['stu_import_nonce'] ) || ! wp_verify_nonce( $_POST['stu_import_nonce'], 'stu_import_nonce_action' ) ) {
+        return;
+    }
+
+    // Check autosave
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+        return;
+    }
+
+    // Check permissions
+    if ( ! current_user_can( 'edit_post', $post_id ) ) {
+        return;
+    }
+
+    // Save Pure Mode
+    $pure_mode = isset( $_POST['stu_pure_mode'] ) ? '1' : '0';
+    update_post_meta( $post_id, 'stu_pure_mode', $pure_mode );
+}
+add_action( 'save_post', 'stu_save_import_tool_meta' );

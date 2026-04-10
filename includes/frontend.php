@@ -62,6 +62,44 @@ function stu_enqueue_dynamic_assets() {
 add_action( 'wp_enqueue_scripts', 'stu_enqueue_dynamic_assets' );
 
 /**
+ * Handle Pure Mode: Dequeue other assets if enabled.
+ */
+function stu_handle_pure_mode() {
+    if ( ! is_singular() ) {
+        return;
+    }
+
+    $post_id = get_the_ID();
+    $pure_mode = get_post_meta( $post_id, 'stu_pure_mode', true );
+    if ( '1' !== $pure_mode ) {
+        return;
+    }
+
+    // Dequeue styles
+    global $wp_styles;
+    if ( ! empty( $wp_styles->queue ) ) {
+        foreach ( $wp_styles->queue as $handle ) {
+            // Keep our plugin assets and core dashicons
+            if ( strpos( $handle, 'stu-' ) !== 0 && $handle !== 'dashicons' ) {
+                wp_dequeue_style( $handle );
+            }
+        }
+    }
+
+    // Dequeue scripts
+    global $wp_scripts;
+    if ( ! empty( $wp_scripts->queue ) ) {
+        foreach ( $wp_scripts->queue as $handle ) {
+            // Keep our plugin assets and critical core stuff
+            if ( strpos( $handle, 'stu-' ) !== 0 && ! in_array( $handle, array( 'jquery', 'jquery-core', 'jquery-migrate' ), true ) ) {
+                wp_dequeue_script( $handle );
+            }
+        }
+    }
+}
+add_action( 'wp_enqueue_scripts', 'stu_handle_pure_mode', 9999 );
+
+/**
  * Global helper for icons.
  */
 function stu_enqueue_icon_fix() {
