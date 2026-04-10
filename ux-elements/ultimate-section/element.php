@@ -26,6 +26,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 function stu_render_ultimate_section( $atts, $content = null ) {
     $atts = shortcode_atts(
         array(
+            'html_template' => '',
             'tag'           => 'div',
             'css_class'     => '',
             'visibility'    => '',
@@ -37,6 +38,17 @@ function stu_render_ultimate_section( $atts, $content = null ) {
     // 1. Extract the Template from content
     // Remove all [ux_field_*] shortcodes to get the RAW HTML template
     $template = preg_replace( '/\[ux_field_(text|image|link)[\s\S]*?\]/i', '', $content );
+    $template = trim( $template );
+
+    // BUG FIX & FALLBACK: If template is empty, check the legacy 'html_template' attribute
+    if ( empty( $template ) && ! empty( $atts['html_template'] ) ) {
+        $template = rawurldecode( $atts['html_template'] );
+    }
+
+    // Still empty? Show children directly as a last resort
+    if ( empty( $template ) ) {
+        return do_shortcode( $content );
+    }
 
     // 2. Parse child elements and get slot => rendered_html
     $slots = stu_parse_child_slots( $content );

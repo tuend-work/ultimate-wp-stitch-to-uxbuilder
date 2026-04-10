@@ -213,11 +213,13 @@ function stu_generate_shortcode_with_overrides( $parsed ) {
     $template = $parsed['template'];
     $elements = $parsed['elements'];
 
-    // Use rawurlencode for the template to avoid ALL shortcode attribute issues (including wpautop)
-    $template_encoded = rawurlencode( $template );
+    // Start opening tag (new content system)
+    $shortcode = '[ux_ultimate_section tag="div" css_class=""]' . "\n";
 
-    $shortcode = '[ux_ultimate_section html_template="' . $template_encoded . '" tag="div" css_class=""]';
+    // 1. Add the HTML template as raw content
+    $shortcode .= $template . "\n";
 
+    // 2. Add child shortcodes with overrides
     foreach ( $elements as $el ) {
         $type = $el['type'];
         $dynamic_enabled = isset( $el['dynamic_enabled'] ) && '1' === $el['dynamic_enabled'] ? '1' : '0';
@@ -236,7 +238,7 @@ function stu_generate_shortcode_with_overrides( $parsed ) {
                 if ( '1' === $dynamic_enabled && $dynamic_source ) {
                     $attrs['dynamic_source'] = $dynamic_source;
                 }
-                $shortcode .= stu_build_shortcode_tag_helper( 'ux_field_image', $attrs );
+                $shortcode .= stu_build_shortcode_tag_helper( 'ux_field_image', $attrs ) . "\n";
                 break;
 
             case 'ux_field_text':
@@ -246,7 +248,7 @@ function stu_generate_shortcode_with_overrides( $parsed ) {
                 if ( '1' === $dynamic_enabled && $dynamic_source ) {
                     $attrs['dynamic_source'] = $dynamic_source;
                 }
-                $shortcode .= stu_build_shortcode_tag_helper( 'ux_field_text', $attrs );
+                $shortcode .= stu_build_shortcode_tag_helper( 'ux_field_text', $attrs ) . "\n";
                 break;
 
             case 'ux_field_link':
@@ -257,7 +259,7 @@ function stu_generate_shortcode_with_overrides( $parsed ) {
                 if ( '1' === $dynamic_enabled && $dynamic_source ) {
                     $attrs['dynamic_href'] = $dynamic_source;
                 }
-                $shortcode .= stu_build_shortcode_tag_helper( 'ux_field_link', $attrs );
+                $shortcode .= stu_build_shortcode_tag_helper( 'ux_field_link', $attrs ) . "\n";
                 break;
         }
     }

@@ -15,11 +15,17 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Enqueue dynamic assets from individual custom fields.
  */
 function stu_enqueue_dynamic_assets() {
-    if ( ! is_singular() ) {
+    $post_id = get_the_ID();
+    
+    // Handle UX Builder editor iframe which might have post ID in GET
+    if ( ! $post_id && isset( $_GET['post'] ) ) {
+        $post_id = intval( $_GET['post'] );
+    }
+
+    if ( ! $post_id ) {
         return;
     }
 
-    $post_id = get_the_ID();
     $all_meta = get_post_meta( $post_id );
 
     if ( empty( $all_meta ) || ! is_array( $all_meta ) ) {
