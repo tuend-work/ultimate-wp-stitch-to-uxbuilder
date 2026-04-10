@@ -180,6 +180,10 @@ function stu_ajax_confirm_import() {
             // Scope <style> blocks embedded in the template
             $section['template'] = STU_Import_Tool::scope_template_styles( $section['template'], $scope_id );
         }
+        $sections_with_assets[] = array(
+            'scope_id' => $scope_id,
+            'assets'   => STU_Import_Tool::identify_assets( $section['template'] ),
+        );
     }
     unset( $section );
 
