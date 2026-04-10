@@ -31,6 +31,11 @@ add_ux_builder_shortcode( 'ux_ultimate_section', array(
                 'div'     => 'div',
                 'section' => 'section',
                 'article' => 'article',
+                'header'  => 'header',
+                'footer'  => 'footer',
+                'nav'     => 'nav',
+                'aside'   => 'aside',
+                'main'    => 'main',
             ),
         ),
         'css_class' => array(

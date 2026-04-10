@@ -65,7 +65,7 @@ function stu_render_ultimate_section( $atts, $content = null ) {
     $template = preg_replace( '/\{\{[a-z0-9_]+\}\}/', '', $template );
 
     // Allowed wrapper tags
-    $allowed_tags = array( 'div', 'section', 'article' );
+    $allowed_tags = array( 'div', 'section', 'article', 'header', 'footer', 'nav', 'aside', 'main' );
     $tag = in_array( $atts['tag'], $allowed_tags, true ) ? $atts['tag'] : 'div';
 
     // Build class attribute

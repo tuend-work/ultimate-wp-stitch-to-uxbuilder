@@ -213,8 +213,10 @@ function stu_generate_shortcode_with_overrides( $parsed ) {
     $template = $parsed['template'];
     $elements = $parsed['elements'];
 
-    // Start opening tag (new content system)
-    $shortcode = '[ux_ultimate_section tag="div" css_class=""]' . "\n";
+    // Start opening tag — use detected wrapper tag and class
+    $tag       = isset( $parsed['wrapper_tag'] ) ? esc_attr( $parsed['wrapper_tag'] ) : 'div';
+    $css_class = isset( $parsed['wrapper_class'] ) ? esc_attr( $parsed['wrapper_class'] ) : '';
+    $shortcode = '[ux_ultimate_section tag="' . $tag . '" css_class="' . $css_class . '"]' . "\n";
 
     // 1. Add the HTML template as raw content
     $shortcode .= $template . "\n";

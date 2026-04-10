@@ -124,9 +124,17 @@ class STU_Import_Tool {
             $sections[] = self::parse_html( $html );
         } else {
             foreach ( $blocks as $block ) {
-                $block_html = $dom->saveHTML( $block );
-                $parsed = self::parse_html( $block_html );
+                // Extract wrapper tag and class from the root element
+                $wrapper_tag   = strtolower( $block->tagName );
+                $wrapper_class = $block->getAttribute( 'class' );
+
+                // Use inner HTML as the template (avoids double-wrapping)
+                $inner_html = self::get_inner_html( $block, $dom );
+                $parsed = self::parse_html( $inner_html );
+
                 if ( ! empty( $parsed['elements'] ) || ! empty( trim( $parsed['template'] ) ) ) {
+                    $parsed['wrapper_tag']   = $wrapper_tag;
+                    $parsed['wrapper_class'] = $wrapper_class;
                     $sections[] = $parsed;
                 }
             }
@@ -394,7 +402,9 @@ class STU_Import_Tool {
     public static function generate_multi_shortcode( $sections ) {
         $output = '';
         foreach ( $sections as $section ) {
-            $output .= self::generate_shortcode( $section );
+            $tag       = isset( $section['wrapper_tag'] ) ? $section['wrapper_tag'] : 'div';
+            $css_class = isset( $section['wrapper_class'] ) ? $section['wrapper_class'] : '';
+            $output   .= self::generate_shortcode( $section, $tag, $css_class );
         }
         return $output;
     }
