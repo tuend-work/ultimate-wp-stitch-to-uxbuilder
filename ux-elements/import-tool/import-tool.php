@@ -767,16 +767,23 @@ class STU_Import_Tool {
                 continue;
             }
 
-            // Strip html / body / :root — replace with scope.
+            // Strip html / body / :root — these are replaced by the scope itself.
             $sel = preg_replace( '/^(html|body|:root)\b\s*/', '', $sel );
             $sel = trim( $sel );
 
-            // Prefix individual .class and #id within the selector
+            // 1. Prefix all classes and IDs inside the selector string.
             // .hero -> .stu-123-hero, #header -> #stu-123-header
-            $sel = preg_replace( '/\.([a-zA-Z0-9_-]+)/', '.' . $prefix . '-$1', $sel );
-            $sel = preg_replace( '/#([a-zA-Z0-9_-]+)/', '#' . $prefix . '-$1', $sel );
+            $scoped_sel = preg_replace( '/\.([a-zA-Z0-9_-]+)/', '.' . $prefix . '-$1', $sel );
+            $scoped_sel = preg_replace( '/#([a-zA-Z0-9_-]+)/', '#' . $prefix . '-$1', $scoped_sel );
 
-            $result[] = empty( $sel ) ? $scope : $scope . ' ' . $sel;
+            // 2. Decide if we need the parent scope wrapper (.stu-123).
+            // If the selector now contains a scoped class/id, it's already "safe".
+            // If it's still just tags (like "h1" or "div p"), we must prefix it with the scope.
+            if ( strpos( $scoped_sel, '.' . $prefix ) !== false || strpos( $scoped_sel, '#' . $prefix ) !== false ) {
+                $result[] = $scoped_sel;
+            } else {
+                $result[] = empty( $scoped_sel ) ? $scope : $scope . ' ' . $scoped_sel;
+            }
         }
 
         return implode( ', ', $result );
