@@ -113,6 +113,20 @@ function stu_handle_pure_mode() {
             }
         }
     }
+
+    // Inject "Cleanup CSS" to hide unstyled theme HTML (header, footer, menus, etc.)
+    wp_add_inline_style( 'stu-style-pure-fix', '
+        /* Hide common theme wrappers that become unstyled mess when CSS is gone */
+        header, footer, #header, #footer, .header, .footer, 
+        #main-menu, .mobile-sidebar, .sidebar-menu,
+        #wrapper > *:not(#main):not(.stu-pure-keep),
+        .mfp-hide, .mfp-bg, .mfp-wrap { display: none !important; }
+        
+        /* Ensure our sections are visible and take full width */
+        body { margin: 0; padding: 0; overflow-x: hidden; }
+        #main { padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: none !important; }
+    ' );
+    wp_enqueue_style( 'stu-style-pure-fix', false );
 }
 add_action( 'wp_enqueue_scripts', 'stu_handle_pure_mode', 9999 );
 
