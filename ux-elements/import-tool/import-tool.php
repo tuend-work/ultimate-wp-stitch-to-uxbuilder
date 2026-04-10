@@ -62,63 +62,80 @@ class STU_Import_Tool {
      */
     public static function parse_multi_sections( $html ) {
         if ( empty( $html ) ) {
-            return array();
+            return array( 'sections' => array(), 'assets' => array() );
         }
 
         $dom = new DOMDocument( '1.0', 'UTF-8' );
         libxml_use_internal_errors( true );
-        
-        // Wrap to handle fragments
-        $dom->loadHTML( '<?xml encoding="UTF-8"><body>' . $html . '</body>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
+        // Wrap for fragmented HTML but handle full HTML too
+        $dom->loadHTML( '<?xml encoding="UTF-8">' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
         libxml_clear_errors();
 
-        $body = $dom->getElementsByTagName( 'body' )->item( 0 );
-        if ( ! $body ) {
-            return array( self::parse_html( $html ) );
+        $assets = array( 'styles' => array(), 'scripts' => array() );
+
+        // 1. Collect all styles
+        $style_nodes = $dom->getElementsByTagName( 'style' );
+        foreach ( $style_nodes as $node ) {
+            $assets['styles'][] = array( 'type' => 'inline', 'content' => $node->textContent );
         }
 
-        $sections = array();
-        $blocks = array();
-
-        // Identify top-level blocks
-        foreach ( $body->childNodes as $node ) {
-            if ( $node->nodeType !== XML_ELEMENT_NODE ) {
-                continue;
+        // 2. Collect all link[rel=stylesheet]
+        $link_nodes = $dom->getElementsByTagName( 'link' );
+        foreach ( $link_nodes as $node ) {
+            if ( 'stylesheet' === strtolower( $node->getAttribute( 'rel' ) ) ) {
+                $assets['styles'][] = array( 'type' => 'external', 'src' => $node->getAttribute( 'href' ) );
             }
+        }
 
-            $tag = strtolower( $node->tagName );
-
-            // Skip meta/link/title/head but KEEP script/style
-            if ( in_array( $tag, array( 'link', 'meta', 'title', 'head' ), true ) ) {
-                continue;
-            }
-
-            // If it's <main>, we treat its children as blocks
-            if ( 'main' === $tag ) {
-                foreach ( $node->childNodes as $main_child ) {
-                    if ( $main_child->nodeType === XML_ELEMENT_NODE ) {
-                        $blocks[] = $main_child;
-                    }
-                }
+        // 3. Collect all scripts
+        $script_nodes = $dom->getElementsByTagName( 'script' );
+        foreach ( $script_nodes as $node ) {
+            if ( $node->hasAttribute( 'src' ) ) {
+                $assets['scripts'][] = array( 'type' => 'external', 'src' => $node->getAttribute( 'src' ) );
             } else {
-                $blocks[] = $node;
+                $assets['scripts'][] = array( 'type' => 'inline', 'content' => $node->textContent );
             }
         }
 
-        // If no blocks found, parse the whole thing as one
+        // 4. Identify blocks from body
+        $body = $dom->getElementsByTagName( 'body' )->item( 0 );
+        $blocks = array();
+        
+        if ( $body ) {
+            foreach ( $body->childNodes as $node ) {
+                if ( $node->nodeType !== XML_ELEMENT_NODE ) { continue; }
+                $tag = strtolower( $node->tagName );
+                if ( in_array( $tag, array( 'style', 'script', 'link', 'meta', 'title', 'head' ), true ) ) { continue; }
+
+                if ( 'main' === $tag ) {
+                    foreach ( $node->childNodes as $main_child ) {
+                        if ( $main_child->nodeType === XML_ELEMENT_NODE ) { $blocks[] = $main_child; }
+                    }
+                } else {
+                    $blocks[] = $node;
+                }
+            }
+        }
+
+        // 5. Build sections
+        $sections = array();
         if ( empty( $blocks ) ) {
-            return array( self::parse_html( $html ) );
-        }
-
-        foreach ( $blocks as $block ) {
-            $block_html = $dom->saveHTML( $block );
-            $parsed = self::parse_html( $block_html );
-            if ( ! empty( $parsed['elements'] ) || ! empty( trim( $parsed['template'] ) ) ) {
-                $sections[] = $parsed;
+            // Case where body is missing or single element
+            $sections[] = self::parse_html( $html );
+        } else {
+            foreach ( $blocks as $block ) {
+                $block_html = $dom->saveHTML( $block );
+                $parsed = self::parse_html( $block_html );
+                if ( ! empty( $parsed['elements'] ) || ! empty( trim( $parsed['template'] ) ) ) {
+                    $sections[] = $parsed;
+                }
             }
         }
 
-        return $sections;
+        return array(
+            'sections' => $sections,
+            'assets'   => $assets,
+        );
     }
 
     /**

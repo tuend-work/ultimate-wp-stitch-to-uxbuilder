@@ -43,10 +43,8 @@ function stu_ajax_preview_import() {
             }
         } else {
             $html = file_get_contents( $file_path );
-            $sections = STU_Import_Tool::parse_multi_sections( $html );
-        }
-    } elseif ( ! empty( $html ) ) {
-        $sections = STU_Import_Tool::parse_multi_sections( $html );
+        $result = STU_Import_Tool::parse_multi_sections( $html );
+        $sections = $result['sections'];
     }
 
     if ( empty( $sections ) ) {
@@ -101,10 +99,9 @@ function stu_ajax_confirm_import() {
             $sections = STU_Import_Tool::parse_zip( $file_path );
         } else {
             $html = file_get_contents( $file_path );
-            $sections = STU_Import_Tool::parse_multi_sections( $html );
-        }
-    } elseif ( ! empty( $html ) ) {
-        $sections = STU_Import_Tool::parse_multi_sections( $html );
+        $result = STU_Import_Tool::parse_multi_sections( $html );
+        $sections = $result['sections'];
+        $assets = $result['assets'];
     }
 
     if ( empty( $sections ) || isset( $sections['error'] ) ) {
@@ -146,13 +143,39 @@ function stu_ajax_confirm_import() {
         wp_send_json_error( array( 'message' => $result->get_error_message() ) );
     }
 
-    // Record import hash
+    // 1. Process and save Styles
+    if ( ! empty( $assets['styles'] ) ) {
+        foreach ( $assets['styles'] as $style ) {
+            $is_ext = ( 'external' === $style['type'] );
+            $content = $is_ext ? $style['src'] : $style['content'];
+            $hash = substr( md5( $content ), 0, 8 );
+            $type_tag = $is_ext ? 'ext' : 'inline';
+            
+            $meta_key = sprintf( 'stu-style-%s-%s', $type_tag, $hash );
+            update_post_meta( $post_id, $meta_key, $content );
+        }
+    }
+
+    // 2. Process and save Scripts
+    if ( ! empty( $assets['scripts'] ) ) {
+        foreach ( $assets['scripts'] as $script ) {
+            $is_ext = ( 'external' === $script['type'] );
+            $content = $is_ext ? $script['src'] : $script['content'];
+            $hash = substr( md5( $content ), 0, 8 );
+            $type_tag = $is_ext ? 'ext' : 'inline';
+
+            $meta_key = sprintf( 'stu-script-%s-%s', $type_tag, $hash );
+            update_post_meta( $post_id, $meta_key, $content );
+        }
+    }
+
+    // Record import hash for the overall content
     $cumulative_html = '';
     foreach ( $sections as $sec ) { $cumulative_html .= $sec['template']; }
     STU_Import_Tool::record_import( $post_id, $cumulative_html );
 
     wp_send_json_success( array(
-        'message'   => __( 'Import successful! Sections appended to post content.', 'stitch-to-uxbuilder' ),
+        'message'   => __( 'Import successful! Assets deduplicated by content hash and saved to custom fields.', 'stitch-to-uxbuilder' ),
         'shortcode' => $final_shortcode,
     ) );
 }

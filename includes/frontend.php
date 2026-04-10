@@ -1,6 +1,8 @@
 <?php
 /**
  * Frontend assets and logic for Stitch to UX Builder.
+ * 
+ * Version 1.0.9: Individual Asset Fields
  *
  * @package StitchToUXBuilder
  */
@@ -10,62 +12,66 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Enqueue frontend assets (Tailwind, Fonts, Icons).
+ * Enqueue dynamic assets from individual custom fields.
  */
-function stu_enqueue_frontend_assets() {
-    // 1. Tailwind Play CDN (Required for AI generated layouts)
-    wp_enqueue_script( 'stu-tailwind', 'https://cdn.tailwindcss.com', array(), null, false );
+function stu_enqueue_dynamic_assets() {
+    if ( ! is_singular() ) {
+        return;
+    }
 
-    // 2. Google Fonts: Inter (Commonly used by AI)
-    wp_enqueue_style( 'stu-google-fonts', 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap', array(), null );
+    $post_id = get_the_ID();
+    $all_meta = get_post_meta( $post_id );
 
-    // 3. Material Symbols Outlined
-    wp_enqueue_style( 'stu-material-symbols', 'https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200', array(), null );
+    if ( empty( $all_meta ) || ! is_array( $all_meta ) ) {
+        return;
+    }
 
-    // 4. Custom overrides for Flatsome compatibility
-    wp_add_inline_style( 'stu-google-fonts', '
-        .material-symbols-outlined {
-            font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
-            display: inline-block;
-            vertical-align: middle;
+    foreach ( $all_meta as $key => $values ) {
+        $content = $values[0]; // Post meta values are always in an array
+
+        // 1. Process Styles
+        if ( strpos( $key, 'stu-style-' ) === 0 ) {
+            $handle = $key;
+            if ( strpos( $key, 'stu-style-ext-' ) === 0 ) {
+                wp_enqueue_style( $handle, $content, array(), null );
+            } else {
+                wp_register_style( $handle, false );
+                wp_enqueue_style( $handle );
+                wp_add_inline_style( $handle, $content );
+            }
         }
-        /* Fix for Tailwind vs Flatsome collisions */
-        .ux-ultimate-section-wrapper { position: relative; width: 100%; }
-        
-        /* Glassmorphism support (Common in v0/Stitch) */
-        .glass-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+
+        // 2. Process Scripts
+        if ( strpos( $key, 'stu-script-' ) === 0 ) {
+            $handle = $key;
+            // Detect tailwind to use fixed handle if needed
+            if ( strpos( $content, 'tailwindcss' ) !== false ) {
+                $handle = 'stu-tailwind';
+            }
+
+            if ( strpos( $key, 'stu-script-ext-' ) === 0 ) {
+                wp_enqueue_script( $handle, $content, array(), null, false );
+            } else {
+                add_action( 'wp_footer', function() use ($content) {
+                    echo '<script>' . $content . '</script>';
+                }, 20 );
+            }
         }
-        .dark .glass-card {
-            background: rgba(0, 0, 0, 0.2);
-            border-color: rgba(255, 255, 255, 0.05);
-        }
-    ' );
+    }
 }
-add_action( 'wp_enqueue_scripts', 'stu_enqueue_frontend_assets' );
+add_action( 'wp_enqueue_scripts', 'stu_enqueue_dynamic_assets' );
 
 /**
- * Add Tailwind configuration to handle dark mode and custom colors.
+ * Global helper for icons.
  */
-function stu_tailwind_config() {
-    ?>
-    <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            primary: '#0066ff',
-            'background-light': '#ffffff',
-            'background-dark': '#0f172a',
-          }
-        }
-      }
+function stu_enqueue_icon_fix() {
+    global $post;
+    if ( ! is_singular() || ! isset( $post->post_content ) || strpos( $post->post_content, '[ux_ultimate_section' ) === false ) {
+        return;
     }
-    </script>
-    <?php
+    
+    wp_add_inline_style( 'dashicons', '
+        .material-symbols-outlined { font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; display: inline-block; vertical-align: middle; }
+    ' );
 }
-add_action( 'wp_head', 'stu_tailwind_config' );
+add_action( 'wp_enqueue_scripts', 'stu_enqueue_icon_fix' );

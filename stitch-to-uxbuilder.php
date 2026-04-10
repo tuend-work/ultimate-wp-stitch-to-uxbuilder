@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants
-define( 'STU_VERSION', '1.0.5' );
+define( 'STU_VERSION', '1.1.1' );
 define( 'STU_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'STU_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'STU_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
@@ -55,7 +55,7 @@ function stu_init() {
         require_once STU_PLUGIN_DIR . 'includes/updater.php';
     }
 }
-add_action( 'after_setup_theme', 'stu_init', 20 );
+add_action( 'init', 'stu_init', 20 );
 
 /**
  * Register UX Builder elements (only when UX Builder is active).
