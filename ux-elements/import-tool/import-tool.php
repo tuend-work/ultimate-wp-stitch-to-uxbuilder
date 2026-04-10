@@ -165,7 +165,8 @@ class STU_Import_Tool {
 
         $counters = array( 'img' => 0, 'text' => 0, 'link' => 0, 'heading' => 0, 'span' => 0 );
         $elements = array();
-        $template = self::process_node_to_shortcodes( $body, $counters, $dom, $elements );
+        // Start recursion at depth 0
+        $template = self::process_node_to_shortcodes( $body, $counters, $dom, $elements, 0 );
 
         return array(
             'template' => $template,
@@ -176,7 +177,7 @@ class STU_Import_Tool {
     /**
      * Recursive processor to convert ALL nodes to shortcodes.
      */
-    private static function process_node_to_shortcodes( $node, &$counters, $dom, &$elements ) {
+    private static function process_node_to_shortcodes( $node, &$counters, $dom, &$elements, $depth = 0 ) {
         $shortcode = '';
 
         foreach ( $node->childNodes as $child ) {
@@ -195,22 +196,22 @@ class STU_Import_Tool {
 
             $tag_name = strtolower( $child->tagName );
 
-            // Keep style, script and svg tags as raw HTML (Still useful as blocks)
+            // Keep style, script and svg tags as raw HTML
             if ( in_array( $tag_name, array( 'style', 'script', 'svg' ), true ) ) {
                 $shortcode .= $dom->saveHTML( $child );
                 continue;
             }
 
             // Map standard elements to specialized shortcodes
-            $special = self::try_map_special_element( $child, $tag_name, $counters, $dom, $elements );
+            $special = self::try_map_special_element( $child, $tag_name, $counters, $dom, $elements, $depth );
             if ( $special ) {
                 $shortcode .= $special;
                 continue;
             }
 
-            // Generic mapping to ux_html_node
-            $inner = self::process_node_to_shortcodes( $child, $counters, $dom, $elements );
-            $shortcode .= self::build_html_node_shortcode( $child, $inner, $counters, $elements );
+            // Generic mapping with depth-based tag alternation to support nesting in WP
+            $inner = self::process_node_to_shortcodes( $child, $counters, $dom, $elements, $depth + 1 );
+            $shortcode .= self::build_html_node_shortcode( $child, $inner, $counters, $elements, $depth );
         }
 
         return $shortcode;
@@ -219,7 +220,7 @@ class STU_Import_Tool {
     /**
      * Try to map an element to a specialized shortcode.
      */
-    private static function try_map_special_element( $node, $tag_name, &$counters, $dom, &$elements ) {
+    private static function try_map_special_element( $node, $tag_name, &$counters, $dom, &$elements, $depth ) {
         if ( 'img' === $tag_name ) {
             $counters['img']++;
             $slot = 'image_' . $counters['img'];
@@ -244,7 +245,7 @@ class STU_Import_Tool {
         if ( 'a' === $tag_name ) {
             $counters['link']++;
             $slot = 'link_' . $counters['link'];
-            $inner = self::process_node_to_shortcodes( $node, $counters, $dom, $elements );
+            $inner = self::process_node_to_shortcodes( $node, $counters, $dom, $elements, $depth + 1 );
             
             $attrs = array(
                 'slot'      => $slot,
@@ -257,13 +258,13 @@ class STU_Import_Tool {
                 'type'  => 'ux_field_link',
                 'slot'  => $slot,
                 'href'  => $attrs['href'],
-                'label' => $node->textContent, // Simplified for UI display
+                'label' => $node->textContent,
             );
 
             return '[ux_field_link ' . self::attributes_to_string( $attrs ) . ']' . $inner . '[/ux_field_link]';
         }
 
-        // Handle Text tags (p, h1-h6) as specialized ux_field_text for editing
+        // Handle Text tags (p, h1-h6) as specialized ux_field_text
         if ( in_array( $tag_name, array( 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'span' ), true ) ) {
             $counters['text']++;
             $slot = 'text_' . $counters['text'];
@@ -289,14 +290,13 @@ class STU_Import_Tool {
     }
 
     /**
-     * Build [ux_html_node] shortcode for any element.
+     * Build alternating [ux_html_node] / [ux_html_block] shortcode.
      */
-    private static function build_html_node_shortcode( $node, $content, &$counters, &$elements ) {
+    private static function build_html_node_shortcode( $node, $content, &$counters, &$elements, $depth ) {
         $tag = strtolower( $node->tagName );
         $class = $node->getAttribute( 'class' );
         $id = $node->getAttribute( 'id' );
         
-        // Gather other attributes
         $others = array();
         if ( $node->hasAttributes() ) {
             foreach ( $node->attributes as $attr ) {
@@ -313,7 +313,10 @@ class STU_Import_Tool {
             'other_atts' => $other_atts,
         );
 
-        return '[ux_html_node ' . self::attributes_to_string( $attrs ) . ']' . $content . '[/ux_html_node]';
+        // Toggle tag name based on depth to support nesting in WP
+        $shortcode_tag = ( $depth % 2 === 0 ) ? 'ux_html_node' : 'ux_html_block';
+
+        return '[' . $shortcode_tag . ' ' . self::attributes_to_string( $attrs ) . ']' . $content . '[/' . $shortcode_tag . ']';
     }
 
     /**
