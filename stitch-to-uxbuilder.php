@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants
-define( 'STU_VERSION', '1.1.7' );
+define( 'STU_VERSION', '1.1.8' );
 define( 'STU_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'STU_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'STU_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );

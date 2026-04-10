@@ -196,8 +196,8 @@ class STU_Import_Tool {
 
             $tag_name = strtolower( $child->tagName );
 
-            // Keep style and script tags as raw HTML
-            if ( in_array( $tag_name, array( 'style', 'script' ), true ) ) {
+            // Keep style, script and svg tags as raw HTML
+            if ( in_array( $tag_name, array( 'style', 'script', 'svg' ), true ) ) {
                 $template .= $dom->saveHTML( $child );
                 continue;
             }
