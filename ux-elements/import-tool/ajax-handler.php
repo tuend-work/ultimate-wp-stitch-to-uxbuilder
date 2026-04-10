@@ -147,14 +147,13 @@ function stu_ajax_confirm_import() {
     }
 
     // 4. CSS Scoping — isolate imported styles from the rest of the page
-    $scope_templates = '';
-    foreach ( $sections as $sec ) {
-        $scope_templates .= $sec['template'];
-    }
-    $scope_id = 'stu-' . substr( md5( $scope_templates ), 0, 8 );
-
-    // Add scope class to each section's wrapper_class
     foreach ( $sections as &$section ) {
+        // 1. Generate a consistent scope ID based on the section's content hash
+        // Using the first 800 chars of the template to ensure uniqueness but consistency
+        $content_seed = ! empty( $section['template'] ) ? $section['template'] : serialize( $section['elements'] );
+        $scope_id = 'stu-' . substr( md5( $content_seed ), 0, 8 );
+
+        // 2. CSS Scoping
         $existing_classes = isset( $section['wrapper_class'] ) ? explode( ' ', $section['wrapper_class'] ) : array();
         $prefixed_classes = array( $scope_id );
 
@@ -203,14 +202,7 @@ function stu_ajax_confirm_import() {
         wp_send_json_error( array( 'message' => $result->get_error_message() ) );
     }
 
-    // 5. Cleanup OLD assets first (prevent duplication)
-    global $wpdb;
-    $wpdb->query( $wpdb->prepare(
-        "DELETE FROM $wpdb->postmeta WHERE post_id = %d AND (meta_key LIKE 'stu-style-%%' OR meta_key LIKE 'stu-script-%%')",
-        $post_id
-    ) );
-
-    // 6. Process and save Styles (scoped)
+    // 5. Process and save Styles (scoped)
     if ( ! empty( $assets['styles'] ) ) {
         foreach ( $assets['styles'] as $style ) {
             $is_ext = ( 'external' === $style['type'] );
