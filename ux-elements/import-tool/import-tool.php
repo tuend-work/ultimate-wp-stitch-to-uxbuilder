@@ -359,11 +359,16 @@ class STU_Import_Tool {
      * @return string Inner HTML.
      */
     private static function get_inner_html( $node, $dom ) {
-        $inner = '';
+        $inner_html = '';
         foreach ( $node->childNodes as $child ) {
-            $inner .= $dom->saveHTML( $child );
+            $inner_html .= $dom->saveHTML( $child );
         }
-        return trim( $inner );
+        
+        // Clean up common DOMDocument artifacts that break SVG
+        // Fix self-closing paths that DOMDocument might have expanded incorrectly or left open
+        $inner_html = preg_replace( '/<(path|rect|circle|ellipse|line|polyline|polygon|use)([^>]*)\s*><\/\1>/i', '<\1\2 />', $inner_html );
+
+        return $inner_html;
     }
 
     /**

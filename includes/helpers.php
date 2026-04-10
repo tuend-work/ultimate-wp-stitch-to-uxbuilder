@@ -89,15 +89,18 @@ function stu_get_allowed_slot_html() {
     return array_merge(
         wp_kses_allowed_html( 'post' ),
         array(
-            'img'    => array( 'src' => true, 'alt' => true, 'class' => true, 'width' => true, 'height' => true, 'loading' => true, 'id' => true, 'style' => true ),
-            'svg'    => array( 'class' => true, 'width' => true, 'height' => true, 'viewbox' => true, 'fill' => true, 'xmlns' => true, 'aria-hidden' => true, 'role' => true, 'style' => true, 'id' => true ),
-            'path'   => array( 'd' => true, 'fill' => true, 'stroke' => true, 'stroke-width' => true, 'stroke-linecap' => true, 'stroke-linejoin' => true, 'style' => true, 'id' => true ),
-            'g'      => array( 'fill' => true, 'stroke' => true, 'transform' => true, 'id' => true, 'class' => true, 'style' => true ),
-            'rect'   => array( 'x' => true, 'y' => true, 'width' => true, 'height' => true, 'rx' => true, 'ry' => true, 'fill' => true, 'stroke' => true, 'id' => true, 'class' => true, 'style' => true ),
-            'circle' => array( 'cx' => true, 'cy' => true, 'r' => true, 'fill' => true, 'stroke' => true, 'id' => true, 'class' => true, 'style' => true ),
+            'img'    => array( 'src' => true, 'alt' => true, 'class' => true, 'width' => true, 'height' => true, 'loading' => true, 'id' => true, 'style' => true, 'srcset' => true, 'sizes' => true ),
+            'svg'    => array( 'class' => true, 'width' => true, 'height' => true, 'viewbox' => true, 'viewBox' => true, 'fill' => true, 'xmlns' => true, 'aria-hidden' => true, 'role' => true, 'style' => true, 'id' => true, 'preserveaspectratio' => true, 'stroke' => true ),
+            'path'   => array( 'd' => true, 'fill' => true, 'stroke' => true, 'stroke-width' => true, 'stroke-linecap' => true, 'stroke-linejoin' => true, 'style' => true, 'id' => true, 'class' => true, 'transform' => true ),
+            'g'      => array( 'fill' => true, 'stroke' => true, 'transform' => true, 'id' => true, 'class' => true, 'style' => true, 'opacity' => true ),
+            'rect'   => array( 'x' => true, 'y' => true, 'width' => true, 'height' => true, 'rx' => true, 'ry' => true, 'fill' => true, 'stroke' => true, 'id' => true, 'class' => true, 'style' => true, 'transform' => true ),
+            'circle' => array( 'cx' => true, 'cy' => true, 'r' => true, 'fill' => true, 'stroke' => true, 'id' => true, 'class' => true, 'style' => true, 'transform' => true ),
             'defs'   => array(),
             'clippath' => array( 'id' => true ),
+            'clipPath' => array( 'id' => true ),
             'use'    => array( 'href' => true, 'xlink:href' => true ),
+            'polygon'=> array( 'points' => true, 'fill' => true, 'stroke' => true, 'id' => true, 'class' => true, 'style' => true ),
+            'polyline'=> array( 'points' => true, 'fill' => true, 'stroke' => true, 'id' => true, 'class' => true, 'style' => true ),
             'iframe' => array( 'src' => true, 'width' => true, 'height' => true, 'frameborder' => true, 'allow' => true, 'allowfullscreen' => true, 'class' => true, 'style' => true, 'loading' => true ),
         )
     );
