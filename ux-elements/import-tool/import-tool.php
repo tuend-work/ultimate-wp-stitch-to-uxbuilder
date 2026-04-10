@@ -759,6 +759,7 @@ class STU_Import_Tool {
     private static function prefix_selectors( $selector_str, $scope ) {
         $selectors = explode( ',', $selector_str );
         $result    = array();
+        $prefix    = ltrim( $scope, '.' );
 
         foreach ( $selectors as $sel ) {
             $sel = trim( $sel );
@@ -769,6 +770,11 @@ class STU_Import_Tool {
             // Strip html / body / :root — replace with scope.
             $sel = preg_replace( '/^(html|body|:root)\b\s*/', '', $sel );
             $sel = trim( $sel );
+
+            // Prefix individual .class and #id within the selector
+            // .hero -> .stu-123-hero, #header -> #stu-123-header
+            $sel = preg_replace( '/\.([a-zA-Z0-9_-]+)/', '.' . $prefix . '-$1', $sel );
+            $sel = preg_replace( '/#([a-zA-Z0-9_-]+)/', '#' . $prefix . '-$1', $sel );
 
             $result[] = empty( $sel ) ? $scope : $scope . ' ' . $sel;
         }
@@ -792,5 +798,33 @@ class STU_Import_Tool {
             },
             $template
         );
+    }
+    /**
+     * Prefix class and id attributes in HTML content.
+     *
+     * @param string $html   HTML template.
+     * @param string $prefix Prefix to add (e.g. "stu-abc12345").
+     * @return string HTML with prefixed attributes.
+     */
+    public static function prefix_html_content( $html, $prefix ) {
+        // Prefix class="..." attributes
+        $html = preg_replace_callback( '/\bclass=["\']([^"\']+)["\']/i', function( $matches ) use ( $prefix ) {
+            $classes = explode( ' ', $matches[1] );
+            $prefixed = array_map( function( $c ) use ( $prefix ) {
+                $c = trim( $c );
+                if ( empty( $c ) || strpos( $c, '{{' ) !== false ) return $c;
+                return $prefix . '-' . $c;
+            }, $classes );
+            return 'class="' . implode( ' ', $prefixed ) . '"';
+        }, $html );
+
+        // Prefix id="..." attributes
+        $html = preg_replace_callback( '/\bid=["\']([^"\']+)["\']/i', function( $matches ) use ( $prefix ) {
+            $id = trim( $matches[1] );
+            if ( empty( $id ) || strpos( $id, '{{' ) !== false ) return $id;
+            return 'id="' . $prefix . '-' . $id . '"';
+        }, $html );
+
+        return $html;
     }
 }

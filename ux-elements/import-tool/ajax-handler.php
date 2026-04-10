@@ -158,8 +158,10 @@ function stu_ajax_confirm_import() {
         $existing_class = isset( $section['wrapper_class'] ) ? $section['wrapper_class'] : '';
         $section['wrapper_class'] = trim( $scope_id . ' ' . $existing_class );
 
-        // Scope <style> blocks embedded in the template
+        // Prefix class/id attributes in the template HTML
         if ( ! empty( $section['template'] ) ) {
+            $section['template'] = STU_Import_Tool::prefix_html_content( $section['template'], $scope_id );
+            // Scope <style> blocks embedded in the template
             $section['template'] = STU_Import_Tool::scope_template_styles( $section['template'], $scope_id );
         }
     }
