@@ -75,12 +75,24 @@ function stu_handle_pure_mode() {
         return;
     }
 
+    // List of handles to ALWAYS keep (essential WP core + Admin Bar)
+    $keep_handles = array(
+        'admin-bar',
+        'dashicons',
+        'open-sans',
+        'jquery',
+        'jquery-core',
+        'jquery-migrate',
+        'wp-emoji',
+        'wp-emoji-release'
+    );
+
     // Dequeue styles
     global $wp_styles;
     if ( ! empty( $wp_styles->queue ) ) {
         foreach ( $wp_styles->queue as $handle ) {
-            // Keep our plugin assets and core dashicons
-            if ( strpos( $handle, 'stu-' ) !== 0 && $handle !== 'dashicons' ) {
+            // Keep our plugin assets and the whitelist
+            if ( strpos( $handle, 'stu-' ) !== 0 && ! in_array( $handle, $keep_handles, true ) ) {
                 wp_dequeue_style( $handle );
             }
         }
@@ -90,8 +102,8 @@ function stu_handle_pure_mode() {
     global $wp_scripts;
     if ( ! empty( $wp_scripts->queue ) ) {
         foreach ( $wp_scripts->queue as $handle ) {
-            // Keep our plugin assets and critical core stuff
-            if ( strpos( $handle, 'stu-' ) !== 0 && ! in_array( $handle, array( 'jquery', 'jquery-core', 'jquery-migrate' ), true ) ) {
+            // Keep our plugin assets and the whitelist
+            if ( strpos( $handle, 'stu-' ) !== 0 && ! in_array( $handle, $keep_handles, true ) ) {
                 wp_dequeue_script( $handle );
             }
         }
