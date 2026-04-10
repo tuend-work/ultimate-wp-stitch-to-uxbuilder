@@ -73,8 +73,11 @@ function stu_render_field_link( $atts, $content = null ) {
     // Build rel for _blank
     $rel = ( '_blank' === $target ) ? ' rel="noopener noreferrer"' : '';
 
+    // Decode entities to allow <img> tags from SVGs to render properly
+    $decoded_label = html_entity_decode( $label );
+
     return '<a href="' . esc_url( $href ) . '" target="' . esc_attr( $target ) . '"' . $class_attr . $rel . '>'
-        . wp_kses( $label, stu_get_allowed_slot_html() )
+        . wp_kses( $decoded_label, stu_get_allowed_slot_html() )
         . '</a>';
 }
 add_shortcode( 'ux_field_link', 'stu_render_field_link' );

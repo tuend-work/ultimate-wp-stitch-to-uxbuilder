@@ -61,7 +61,8 @@ function stu_render_field_text( $atts, $content = null ) {
     $class = stu_sanitize_css_class( $atts['css_class'] );
     $class_attr = $class ? ' class="' . esc_attr( $class ) . '"' : '';
 
-    // Render
-    return '<' . $tag . $class_attr . '>' . wp_kses( $output, stu_get_allowed_slot_html() ) . '</' . $tag . '>';
+    // Render - Decode entities to allow <img> tags from SVGs to render properly
+    $decoded_output = html_entity_decode( $output );
+    return '<' . $tag . $class_attr . '>' . wp_kses( $decoded_output, stu_get_allowed_slot_html() ) . '</' . $tag . '>';
 }
 add_shortcode( 'ux_field_text', 'stu_render_field_text' );
