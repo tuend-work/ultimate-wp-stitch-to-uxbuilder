@@ -158,6 +158,15 @@ function stu_ajax_confirm_import() {
         $existing_class = isset( $section['wrapper_class'] ) ? $section['wrapper_class'] : '';
         $section['wrapper_class'] = trim( $scope_id . ' ' . $existing_class );
 
+        // Prefix css_class of individual elements
+        if ( ! empty( $section['elements'] ) ) {
+            foreach ( $section['elements'] as &$el ) {
+                if ( ! empty( $el['css_class'] ) ) {
+                    $el['css_class'] = $scope_id . '-' . ltrim( $el['css_class'], '.' );
+                }
+            }
+        }
+
         // Prefix class/id attributes in the template HTML
         if ( ! empty( $section['template'] ) ) {
             $section['template'] = STU_Import_Tool::prefix_html_content( $section['template'], $scope_id );
