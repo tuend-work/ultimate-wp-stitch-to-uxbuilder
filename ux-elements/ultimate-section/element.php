@@ -72,6 +72,9 @@ function stu_render_ultimate_section( $atts, $content = null ) {
     $class = stu_sanitize_css_class( $atts['css_class'] );
     $class_attr = $class ? ' class="' . esc_attr( $class ) . '"' : '';
 
-    return '<' . $tag . $class_attr . '>' . $template . '</' . $tag . '>';
+    // Final render - Avoid wpautop or any content filters that might break SVG/HTML structure
+    $output = '<' . $tag . $class_attr . '>' . wp_kses( $template, stu_get_allowed_slot_html() ) . '</' . $tag . '>';
+    
+    return $output;
 }
 add_shortcode( 'ux_ultimate_section', 'stu_render_ultimate_section' );
