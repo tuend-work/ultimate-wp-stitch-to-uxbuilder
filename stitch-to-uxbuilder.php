@@ -51,6 +51,7 @@ function stu_init() {
     if ( is_admin() ) {
         require_once STU_PLUGIN_DIR . 'ux-elements/import-tool/meta-box.php';
         require_once STU_PLUGIN_DIR . 'ux-elements/import-tool/ajax-handler.php';
+        require_once STU_PLUGIN_DIR . 'includes/updater.php';
     }
 }
 add_action( 'after_setup_theme', 'stu_init', 20 );
