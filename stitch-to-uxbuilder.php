@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Plugin constants
-define( 'STU_VERSION', '1.3.1' );
+define( 'STU_VERSION', '2.0.0-alpha' );
 define( 'STU_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'STU_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'STU_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
@@ -44,6 +44,7 @@ function stu_init() {
 
     // Register shortcodes (always, so content renders on frontend)
     require_once STU_PLUGIN_DIR . 'ux-elements/ux-field-text/element.php';
+    require_once STU_PLUGIN_DIR . 'ux-elements/html-node/element.php';
     require_once STU_PLUGIN_DIR . 'ux-elements/ux-field-image/element.php';
     require_once STU_PLUGIN_DIR . 'ux-elements/ux-field-link/element.php';
     require_once STU_PLUGIN_DIR . 'ux-elements/ultimate-section/element.php';
@@ -68,6 +69,7 @@ function stu_register_ux_elements() {
 
     require_once STU_PLUGIN_DIR . 'ux-elements/ux-field-text/options.php';
     require_once STU_PLUGIN_DIR . 'ux-elements/ux-field-image/options.php';
+    require_once STU_PLUGIN_DIR . 'ux-elements/html-node/options.php';
     require_once STU_PLUGIN_DIR . 'ux-elements/ux-field-link/options.php';
     require_once STU_PLUGIN_DIR . 'ux-elements/ultimate-section/options.php';
 }

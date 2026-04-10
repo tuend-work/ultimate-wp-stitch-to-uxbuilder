@@ -53,13 +53,12 @@ function stu_render_field_link( $atts, $content = null ) {
         }
     }
 
-    // No label = no link
-    if ( empty( $label ) && empty( $content ) ) {
-        return '';
-    }
+    // Link Content (Legacy Label or Nested Shortcodes)
+    $inner_html = ! empty( $content ) ? do_shortcode( $content ) : wp_kses( $label, stu_get_allowed_slot_html() );
 
-    if ( empty( $label ) && ! empty( $content ) ) {
-        $label = $content;
+    // No content/label = no link
+    if ( empty( $inner_html ) ) {
+        return '';
     }
 
     // Allowed targets
@@ -74,7 +73,7 @@ function stu_render_field_link( $atts, $content = null ) {
     $rel = ( '_blank' === $target ) ? ' rel="noopener noreferrer"' : '';
 
     return '<a href="' . esc_url( $href ) . '" target="' . esc_attr( $target ) . '"' . $class_attr . $rel . '>'
-        . wp_kses( $label, stu_get_allowed_slot_html() )
+        . $inner_html
         . '</a>';
 }
 add_shortcode( 'ux_field_link', 'stu_render_field_link' );

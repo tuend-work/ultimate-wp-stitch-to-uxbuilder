@@ -146,10 +146,11 @@ function stu_ajax_confirm_import() {
         STU_Import_Tool::localize_images( $sections );
     }
 
-    // Generate multi-shortcode
+    // Generate final shortcodes using the new recursive parser
     $final_shortcode = '';
-    foreach ( $sections as $section ) {
-        $final_shortcode .= stu_generate_shortcode_with_overrides( $section ) . "\n";
+    foreach ( $sections as $section_html ) {
+        $parsed = STU_Import_Tool::parse_html( $section_html );
+        $final_shortcode .= STU_Import_Tool::generate_shortcode( $parsed ) . "\n";
     }
 
     // Append to post content

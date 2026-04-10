@@ -164,29 +164,28 @@ class STU_Import_Tool {
         }
 
         $counters = array( 'img' => 0, 'text' => 0, 'link' => 0, 'heading' => 0, 'span' => 0 );
-        $result = self::process_node( $body, $counters, $dom );
+        $template = self::process_node_to_shortcodes( $body, $counters, $dom );
 
         return array(
-            'template' => $result['template'],
-            'elements' => $result['elements'],
+            'template' => $template,
+            'elements' => array(), // Elements are baked into the template now
         );
     }
 
     /**
-     * Recursive processor to find elements and build template.
+     * Recursive processor to convert ALL nodes to shortcodes.
      */
-    private static function process_node( $node, &$counters, $dom ) {
-        $elements = array();
-        $template = '';
+    private static function process_node_to_shortcodes( $node, &$counters, $dom ) {
+        $shortcode = '';
 
         foreach ( $node->childNodes as $child ) {
             if ( $child->nodeType === XML_TEXT_NODE ) {
-                $template .= $child->textContent;
+                $text = bin2hex( $child->textContent ); // Temporary hex escape for safety? No.
+                $shortcode .= $child->textContent;
                 continue;
             }
 
             if ( $child->nodeType === XML_COMMENT_NODE ) {
-                $template .= '<!--' . $child->textContent . '-->';
                 continue;
             }
 
@@ -196,28 +195,94 @@ class STU_Import_Tool {
 
             $tag_name = strtolower( $child->tagName );
 
-            // Keep style, script and svg tags as raw HTML
+            // Keep style, script and svg tags as raw HTML (Still useful as blocks)
             if ( in_array( $tag_name, array( 'style', 'script', 'svg' ), true ) ) {
-                $template .= $dom->saveHTML( $child );
+                $shortcode .= $dom->saveHTML( $child );
                 continue;
             }
 
-            $parsed = self::try_parse_element( $child, $tag_name, $counters, $dom );
-            if ( $parsed ) {
-                $template .= '{{' . $parsed['slot'] . '}}';
-                $elements[] = $parsed;
-            } else {
-                // Not a stitch element? Process its children and rebuild tag
-                $inner = self::process_node( $child, $counters, $dom );
-                $template .= self::rebuild_tag_with_template( $child, $inner['template'], $dom );
-                $elements = array_merge( $elements, $inner['elements'] );
+            // Map standard elements to specialized shortcodes
+            $special = self::try_map_special_element( $child, $tag_name, $counters, $dom );
+            if ( $special ) {
+                $shortcode .= $special;
+                continue;
             }
+
+            // Generic mapping to ux_html_node
+            $inner = self::process_node_to_shortcodes( $child, $counters, $dom );
+            $shortcode .= self::build_html_node_shortcode( $child, $inner );
         }
 
-        return array(
-            'template' => $template,
-            'elements' => $elements,
+        return $shortcode;
+    }
+
+    /**
+     * Try to map an element to a specialized shortcode.
+     */
+    private static function try_map_special_element( $node, $tag_name, &$counters, $dom ) {
+        if ( 'img' === $tag_name ) {
+            $attrs = array(
+                'src'       => $node->getAttribute( 'src' ),
+                'alt'       => $node->getAttribute( 'alt' ),
+                'css_class' => $node->getAttribute( 'class' ),
+            );
+            return self::build_shortcode_tag( 'ux_field_image', $attrs );
+        }
+
+        if ( 'a' === $tag_name ) {
+            $inner = self::process_node_to_shortcodes( $node, $counters, $dom );
+            $attrs = array(
+                'href'      => $node->getAttribute( 'href' ),
+                'target'    => $node->getAttribute( 'target' ) ?: '_self',
+                'css_class' => $node->getAttribute( 'class' ),
+            );
+            // Since it's a link element, we might want to put $inner as the label or content
+            // Let's use it as content for simplicity in this experiment
+            return '[ux_field_link ' . self::attributes_to_string( $attrs ) . ']' . $inner . '[/ux_field_link]';
+        }
+
+        return null;
+    }
+
+    /**
+     * Build [ux_html_node] shortcode for any element.
+     */
+    private static function build_html_node_shortcode( $node, $content ) {
+        $tag = strtolower( $node->tagName );
+        $class = $node->getAttribute( 'class' );
+        $id = $node->getAttribute( 'id' );
+        
+        // Gather other attributes
+        $others = array();
+        if ( $node->hasAttributes() ) {
+            foreach ( $node->attributes as $attr ) {
+                if ( in_array( $attr->name, array( 'class', 'id' ), true ) ) continue;
+                $others[] = $attr->name . '="' . esc_attr( $attr->value ) . '"';
+            }
+        }
+        $other_atts = implode( ' ', $others );
+
+        $attrs = array(
+            'tag'        => $tag,
+            'class'      => $class,
+            'id'         => $id,
+            'other_atts' => $other_atts,
         );
+
+        return '[ux_html_node ' . self::attributes_to_string( $attrs ) . ']' . $content . '[/ux_html_node]';
+    }
+
+    /**
+     * Helper to convert array to attribute string.
+     */
+    private static function attributes_to_string( $attrs ) {
+        $parts = array();
+        foreach ( $attrs as $key => $val ) {
+            if ( $val !== '' ) {
+                $parts[] = $key . '="' . esc_attr( $val ) . '"';
+            }
+        }
+        return implode( ' ', $parts );
     }
 
     /**
@@ -408,23 +473,10 @@ class STU_Import_Tool {
      * @return string Complete shortcode string.
      */
     public static function generate_shortcode( $parsed, $tag = 'div', $css_class = '' ) {
-        $template = $parsed['template'];
-        $elements = $parsed['elements'];
+        $content = $parsed['template'];
 
-        // Start opening tag (no html_template attribute anymore)
-        $shortcode = '[ux_ultimate_section tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . '"]' . "\n";
-
-        // Template is kept as RAW HTML in the content
-        $shortcode .= $template . "\n";
-
-        // Child shortcodes follow
-        foreach ( $elements as $el ) {
-            $shortcode .= self::element_to_shortcode( $el ) . "\n";
-        }
-
-        $shortcode .= '[/ux_ultimate_section]';
-
-        return $shortcode;
+        // Wrap the whole nested structure in one Ultimate Section for asset management
+        return '[ux_ultimate_section tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . '"]' . "\n" . $content . "\n" . '[/ux_ultimate_section]';
     }
 
     /**
