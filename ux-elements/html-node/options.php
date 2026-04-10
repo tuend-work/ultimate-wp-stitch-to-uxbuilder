@@ -9,10 +9,15 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
+if ( ! function_exists( 'add_ux_builder_element' ) ) {
+    return;
+}
+
 add_ux_builder_element( 'ux_html_node', array(
     'name'      => __( 'HTML Node', 'stitch-to-uxbuilder' ),
     'category'  => __( 'Stitch Elements', 'stitch-to-uxbuilder' ),
     'type'      => 'container',
+    'allow'     => array( 'ux_html_node', 'ux_field_text', 'ux_field_image', 'ux_field_link' ),
     'info'      => '{{ tag }} . {{ class }}',
     'options'   => array(
         'tag' => array(

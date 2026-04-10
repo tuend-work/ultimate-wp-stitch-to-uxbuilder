@@ -5,8 +5,8 @@
  * @package StitchToUXBuilder
  */
 
-if ( ! defined( 'ABSPATH' ) ) {
-    exit;
+if ( ! function_exists( 'add_ux_builder_shortcode' ) ) {
+    return;
 }
 
 add_ux_builder_shortcode( 'ux_ultimate_section', array(
@@ -15,7 +15,7 @@ add_ux_builder_shortcode( 'ux_ultimate_section', array(
     'icon'     => 'dashicons-layout',
     'type'     => 'container',
     'wrap'     => true,
-    'allow'    => array( 'ux_field_text', 'ux_field_image', 'ux_field_link' ),
+    'allow'    => array( 'ux_field_text', 'ux_field_image', 'ux_field_link', 'ux_html_node' ),
     'options'  => array(
         'tag' => array(
             'type'    => 'select',
