@@ -147,13 +147,14 @@ function stu_ajax_confirm_import() {
     }
 
     // 4. CSS Scoping — isolate imported styles from the rest of the page
-    foreach ( $sections as &$section ) {
-        // 1. Generate a consistent scope ID based on the section's content hash
-        // Using the first 800 chars of the template to ensure uniqueness but consistency
-        $content_seed = ! empty( $section['template'] ) ? $section['template'] : serialize( $section['elements'] );
-        $scope_id = 'stu-' . substr( md5( $content_seed ), 0, 8 );
+    $scope_templates = '';
+    foreach ( $sections as $sec ) {
+        $scope_templates .= $sec['template'];
+    }
+    $scope_id = 'stu-' . substr( md5( $scope_templates ), 0, 8 );
 
-        // 2. CSS Scoping
+    // Add scope class to each section's wrapper_class
+    foreach ( $sections as &$section ) {
         $existing_classes = isset( $section['wrapper_class'] ) ? explode( ' ', $section['wrapper_class'] ) : array();
         $prefixed_classes = array( $scope_id );
 
@@ -180,10 +181,6 @@ function stu_ajax_confirm_import() {
             // Scope <style> blocks embedded in the template
             $section['template'] = STU_Import_Tool::scope_template_styles( $section['template'], $scope_id );
         }
-        $sections_with_assets[] = array(
-            'scope_id' => $scope_id,
-            'assets'   => STU_Import_Tool::identify_assets( $section['template'] ),
-        );
     }
     unset( $section );
 
@@ -191,28 +188,6 @@ function stu_ajax_confirm_import() {
     $final_shortcode = '';
     foreach ( $sections as $section ) {
         $final_shortcode .= stu_generate_shortcode_with_overrides( $section ) . "\n";
-    }
-
-    // 5. Consolidate ALL assets from all sections for saving
-    $all_assets = array( 'styles' => array(), 'scripts' => array() );
-    foreach ( $sections as $index => $section ) {
-        $sid = 'stu-' . substr( md5( ! empty( $section['template'] ) ? $section['template'] : serialize( $section['elements'] ) ), 0, 8 );
-        $section_assets = STU_Import_Tool::identify_assets( $section['template'] );
-        
-        // Scope inline styles before adding to global list
-        if ( ! empty( $section_assets['styles'] ) ) {
-            foreach ( $section_assets['styles'] as $st ) {
-                if ( 'inline' === $st['type'] ) {
-                    $st['content'] = STU_Import_Tool::scope_css( $st['content'], $sid );
-                }
-                $all_assets['styles'][] = $st;
-            }
-        }
-        if ( ! empty( $section_assets['scripts'] ) ) {
-            foreach ( $section_assets['scripts'] as $sc ) {
-                $all_assets['scripts'][] = $sc;
-            }
-        }
     }
 
     // Append to post content
@@ -228,24 +203,36 @@ function stu_ajax_confirm_import() {
         wp_send_json_error( array( 'message' => $result->get_error_message() ) );
     }
 
-    // 6. Process and save Styles
-    foreach ( $all_assets['styles'] as $style ) {
-        $is_ext = ( 'external' === $style['type'] );
-        $content = $is_ext ? $style['src'] : $style['content'];
-        $hash     = substr( md5( $content ), 0, 8 );
-        $type_tag = $is_ext ? 'ext' : 'inline';
-        $meta_key = sprintf( 'stu-style-%s-%s', $type_tag, $hash );
-        update_post_meta( $post_id, $meta_key, $content );
+    // 5. Process and save Styles (scoped)
+    if ( ! empty( $assets['styles'] ) ) {
+        foreach ( $assets['styles'] as $style ) {
+            $is_ext = ( 'external' === $style['type'] );
+            $content = $is_ext ? $style['src'] : $style['content'];
+
+            // Scope inline CSS selectors to prevent conflicts
+            if ( ! $is_ext ) {
+                $content = STU_Import_Tool::scope_css( $content, $scope_id );
+            }
+
+            $hash     = substr( md5( $content ), 0, 8 );
+            $type_tag = $is_ext ? 'ext' : 'inline';
+
+            $meta_key = sprintf( 'stu-style-%s-%s', $type_tag, $hash );
+            update_post_meta( $post_id, $meta_key, $content );
+        }
     }
 
-    // 7. Process and save Scripts
-    foreach ( $all_assets['scripts'] as $script ) {
-        $is_ext = ( 'external' === $script['type'] );
-        $content = $is_ext ? $script['src'] : $script['content'];
-        $hash = substr( md5( $content ), 0, 8 );
-        $type_tag = $is_ext ? 'ext' : 'inline';
-        $meta_key = sprintf( 'stu-script-%s-%s', $type_tag, $hash );
-        update_post_meta( $post_id, $meta_key, $content );
+    // 2. Process and save Scripts
+    if ( ! empty( $assets['scripts'] ) ) {
+        foreach ( $assets['scripts'] as $script ) {
+            $is_ext = ( 'external' === $script['type'] );
+            $content = $is_ext ? $script['src'] : $script['content'];
+            $hash = substr( md5( $content ), 0, 8 );
+            $type_tag = $is_ext ? 'ext' : 'inline';
+
+            $meta_key = sprintf( 'stu-script-%s-%s', $type_tag, $hash );
+            update_post_meta( $post_id, $meta_key, $content );
+        }
     }
 
     // Record import hash for the overall content
