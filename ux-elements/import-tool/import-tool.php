@@ -682,4 +682,115 @@ class STU_Import_Tool {
         $mimes['svg'] = 'image/svg+xml';
         return $mimes;
     }
+
+    /**
+     * Scope CSS by prefixing all selectors with a unique scope class.
+     *
+     * Handles @media/@supports (scopes inner selectors) and
+     * passes through @keyframes/@font-face without modification.
+     *
+     * @param string $css         Raw CSS string.
+     * @param string $scope_class Scope class name (without dot).
+     * @return string Scoped CSS.
+     */
+    public static function scope_css( $css, $scope_class ) {
+        $scope = '.' . $scope_class;
+
+        // Remove CSS comments.
+        $css = preg_replace( '/\/\*[\s\S]*?\*\//', '', $css );
+
+        $result  = '';
+        $buffer  = '';
+        $depth   = 0;
+        $at_type = '';
+
+        for ( $i = 0, $len = strlen( $css ); $i < $len; $i++ ) {
+            $c = $css[ $i ];
+
+            if ( '{' === $c ) {
+                $depth++;
+                $chunk  = trim( $buffer );
+                $buffer = '';
+
+                if ( 1 === $depth ) {
+                    if ( false !== stripos( $chunk, '@keyframes' ) ) {
+                        $at_type = 'keyframes';
+                        $result .= $chunk . '{';
+                    } elseif ( false !== stripos( $chunk, '@media' ) || false !== stripos( $chunk, '@supports' ) ) {
+                        $at_type = 'media';
+                        $result .= $chunk . '{';
+                    } elseif ( 0 === strpos( $chunk, '@' ) ) {
+                        $at_type = 'other';
+                        $result .= $chunk . '{';
+                    } else {
+                        $at_type = '';
+                        $result .= self::prefix_selectors( $chunk, $scope ) . '{';
+                    }
+                } elseif ( 2 === $depth && 'media' === $at_type ) {
+                    $result .= self::prefix_selectors( $chunk, $scope ) . '{';
+                } else {
+                    $result .= $chunk . '{';
+                }
+            } elseif ( '}' === $c ) {
+                $result .= $buffer . '}';
+                $buffer  = '';
+                $depth--;
+                if ( 0 === $depth ) {
+                    $at_type = '';
+                }
+            } else {
+                $buffer .= $c;
+            }
+        }
+
+        $result .= $buffer;
+        return $result;
+    }
+
+    /**
+     * Prefix a comma-separated selector string with a scope class.
+     *
+     * Strips html/body/:root selectors and replaces with scope.
+     *
+     * @param string $selector_str Comma-separated selectors.
+     * @param string $scope        Scope selector (e.g. ".stu-abc12345").
+     * @return string Prefixed selectors.
+     */
+    private static function prefix_selectors( $selector_str, $scope ) {
+        $selectors = explode( ',', $selector_str );
+        $result    = array();
+
+        foreach ( $selectors as $sel ) {
+            $sel = trim( $sel );
+            if ( empty( $sel ) ) {
+                continue;
+            }
+
+            // Strip html / body / :root — replace with scope.
+            $sel = preg_replace( '/^(html|body|:root)\b\s*/', '', $sel );
+            $sel = trim( $sel );
+
+            $result[] = empty( $sel ) ? $scope : $scope . ' ' . $sel;
+        }
+
+        return implode( ', ', $result );
+    }
+
+    /**
+     * Scope <style> blocks embedded inside an HTML template string.
+     *
+     * @param string $template    HTML template containing <style> tags.
+     * @param string $scope_class Scope class name (without dot).
+     * @return string Template with scoped styles.
+     */
+    public static function scope_template_styles( $template, $scope_class ) {
+        return preg_replace_callback(
+            '/<style\b[^>]*>([\s\S]*?)<\/style>/i',
+            function ( $matches ) use ( $scope_class ) {
+                $scoped = STU_Import_Tool::scope_css( $matches[1], $scope_class );
+                return '<style>' . $scoped . '</style>';
+            },
+            $template
+        );
+    }
 }

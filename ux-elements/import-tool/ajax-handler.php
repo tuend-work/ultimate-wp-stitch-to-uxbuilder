@@ -146,6 +146,25 @@ function stu_ajax_confirm_import() {
         STU_Import_Tool::localize_images( $sections );
     }
 
+    // 4. CSS Scoping — isolate imported styles from the rest of the page
+    $scope_templates = '';
+    foreach ( $sections as $sec ) {
+        $scope_templates .= $sec['template'];
+    }
+    $scope_id = 'stu-' . substr( md5( $scope_templates ), 0, 8 );
+
+    // Add scope class to each section's wrapper_class
+    foreach ( $sections as &$section ) {
+        $existing_class = isset( $section['wrapper_class'] ) ? $section['wrapper_class'] : '';
+        $section['wrapper_class'] = trim( $scope_id . ' ' . $existing_class );
+
+        // Scope <style> blocks embedded in the template
+        if ( ! empty( $section['template'] ) ) {
+            $section['template'] = STU_Import_Tool::scope_template_styles( $section['template'], $scope_id );
+        }
+    }
+    unset( $section );
+
     // Generate multi-shortcode
     $final_shortcode = '';
     foreach ( $sections as $section ) {
@@ -165,14 +184,20 @@ function stu_ajax_confirm_import() {
         wp_send_json_error( array( 'message' => $result->get_error_message() ) );
     }
 
-    // 1. Process and save Styles
+    // 5. Process and save Styles (scoped)
     if ( ! empty( $assets['styles'] ) ) {
         foreach ( $assets['styles'] as $style ) {
             $is_ext = ( 'external' === $style['type'] );
             $content = $is_ext ? $style['src'] : $style['content'];
-            $hash = substr( md5( $content ), 0, 8 );
+
+            // Scope inline CSS selectors to prevent conflicts
+            if ( ! $is_ext ) {
+                $content = STU_Import_Tool::scope_css( $content, $scope_id );
+            }
+
+            $hash     = substr( md5( $content ), 0, 8 );
             $type_tag = $is_ext ? 'ext' : 'inline';
-            
+
             $meta_key = sprintf( 'stu-style-%s-%s', $type_tag, $hash );
             update_post_meta( $post_id, $meta_key, $content );
         }
