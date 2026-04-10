@@ -13,6 +13,7 @@ add_ux_builder_shortcode( 'ux_ultimate_section', array(
     'name'     => __( 'Ultimate Section', 'stitch-to-uxbuilder' ),
     'category' => __( 'Stitch Elements', 'stitch-to-uxbuilder' ),
     'icon'     => 'dashicons-layout',
+    'type'     => 'container',
     'wrap'     => true,
     'allow'    => array( 'ux_field_text', 'ux_field_image', 'ux_field_link' ),
     'options'  => array(
