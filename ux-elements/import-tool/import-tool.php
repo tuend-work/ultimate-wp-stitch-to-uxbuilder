@@ -683,31 +683,16 @@ class STU_Import_Tool {
             if ( 'svg+xml' === $ext ) { $ext = 'svg'; }
             $data = base64_decode( $matches[2] );
             $filename = md5( $url ) . '.' . $ext;
+            
+            $temp_file = wp_tempnam( $filename );
+            file_put_contents( $temp_file, $data );
         } else {
             // External URL
             $ext = pathinfo( parse_url( $url, PHP_URL_PATH ), PATHINFO_EXTENSION );
             if ( ! $ext ) { $ext = 'jpg'; }
             $filename = md5( $url ) . '.' . $ext;
-        }
 
-        // Check if attachment already exists by filename
-        global $wpdb;
-        $attachment_id = $wpdb->get_var( $wpdb->prepare(
-            "SELECT post_id FROM $wpdb->postmeta WHERE meta_key = '_wp_attached_file' AND meta_value LIKE %s",
-            '%' . $filename
-        ) );
-
-        if ( $attachment_id ) {
-            $new_url = wp_get_attachment_url( $attachment_id );
-            $download_map[ $url ] = $new_url;
-            return $new_url;
-        }
-
-        // If not exists, proceed with download
-        if ( $is_base64 ) {
-            $temp_file = wp_tempnam( $filename );
-            file_put_contents( $temp_file, $data );
-        } else {
+            // Use WordPress download helper
             $temp_file = download_url( $url );
             if ( is_wp_error( $temp_file ) ) {
                 return false;
