@@ -133,82 +133,61 @@ class STU_Import_Tool {
      */
     public static function parse_html( $html ) {
         if ( empty( $html ) ) {
-            return array(
-                'template' => '',
-                'elements' => array(),
-            );
+            return array( 'template' => '', 'elements' => array() );
         }
 
-        // Clean up HTML
-        $html = trim( $html );
-
-        // Use DOMDocument to parse
         $dom = new DOMDocument( '1.0', 'UTF-8' );
-
-        // Suppress warnings for invalid HTML
         libxml_use_internal_errors( true );
-
-        // Wrap in a root element so DOMDocument doesn't add html/body
-        $wrapped = '<div id="stu-root">' . $html . '</div>';
-        $dom->loadHTML(
-            '<?xml encoding="UTF-8">' . $wrapped,
-            LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
-        );
-
+        $dom->loadHTML( '<?xml encoding="UTF-8"><body>' . $html . '</body>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
         libxml_clear_errors();
 
-        // Find our root wrapper
-        $root = $dom->getElementById( 'stu-root' );
-        if ( ! $root ) {
-            return array(
-                'template' => $html,
-                'elements' => array(),
-            );
+        $body = $dom->getElementsByTagName( 'body' )->item( 0 );
+        if ( ! $body ) {
+            return array( 'template' => $html, 'elements' => array() );
         }
 
-        $elements = array();
-        $counters = array(
-            'img'     => 0,
-            'heading' => 0,
-            'text'    => 0,
-            'link'    => 0,
-            'span'    => 0,
-        );
+        $counters = array( 'img' => 0, 'text' => 0, 'link' => 0, 'heading' => 0, 'span' => 0 );
+        $result = self::process_node( $body, $counters, $dom );
 
+        return array(
+            'template' => $result['template'],
+            'elements' => $result['elements'],
+        );
+    }
+
+    /**
+     * Recursive processor to find elements and build template.
+     */
+    private static function process_node( $node, &$counters, $dom ) {
+        $elements = array();
         $template = '';
 
-        // Process direct children of root (depth 1)
-        foreach ( $root->childNodes as $node ) {
-            if ( $node->nodeType === XML_TEXT_NODE ) {
-                $text = trim( $node->textContent );
-                if ( ! empty( $text ) ) {
-                    $template .= $node->textContent;
-                }
+        foreach ( $node->childNodes as $child ) {
+            if ( $child->nodeType === XML_TEXT_NODE ) {
+                $template .= $child->textContent;
                 continue;
             }
 
-            if ( $node->nodeType === XML_COMMENT_NODE ) {
-                $template .= '<!--' . $node->textContent . '-->';
+            if ( $child->nodeType === XML_COMMENT_NODE ) {
+                $template .= '<!--' . $child->textContent . '-->';
                 continue;
             }
 
-            if ( $node->nodeType !== XML_ELEMENT_NODE ) {
+            if ( $child->nodeType !== XML_ELEMENT_NODE ) {
                 continue;
             }
 
-            $tag_name = strtolower( $node->tagName );
-
-            // Check if this is a parseable tag
-            $parsed = self::try_parse_element( $node, $tag_name, $counters, $dom );
+            $tag_name = strtolower( $child->tagName );
+            $parsed = self::try_parse_element( $child, $tag_name, $counters, $dom );
 
             if ( $parsed ) {
                 $template .= '{{' . $parsed['slot'] . '}}';
                 $elements[] = $parsed;
             } else {
-                // Keep the tag as-is in the template, but process its depth-1 children
-                $inner_result = self::process_container_node( $node, $counters, $dom );
-                $template .= self::rebuild_tag_with_template( $node, $inner_result['template'], $dom );
-                $elements = array_merge( $elements, $inner_result['elements'] );
+                // Not a stitch element? Process its children and rebuild tag
+                $inner = self::process_node( $child, $counters, $dom );
+                $template .= self::rebuild_tag_with_template( $child, $inner['template'], $dom );
+                $elements = array_merge( $elements, $inner['elements'] );
             }
         }
 
@@ -409,11 +388,10 @@ class STU_Import_Tool {
         $template = $parsed['template'];
         $elements = $parsed['elements'];
 
-        // Normalize template: remove newlines to prevent shortcode attribute breaking and wpautop issues
-        $template_safe = str_replace( array( "\r", "\n" ), ' ', $template );
-        $template_safe = preg_replace( '/\s+/', ' ', $template_safe );
-        
-        $shortcode = '[ux_ultimate_section html_template="' . esc_attr( $template_safe ) . '" tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . '"]';
+        // Use rawurlencode for the template to avoid ALL shortcode attribute issues (including wpautop)
+        $template_encoded = rawurlencode( $template );
+
+        $shortcode = '[ux_ultimate_section html_template="' . $template_encoded . '" tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . '"]';
 
         foreach ( $elements as $el ) {
             $shortcode .= self::element_to_shortcode( $el );

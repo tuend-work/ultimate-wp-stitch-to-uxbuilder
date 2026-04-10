@@ -166,11 +166,10 @@ function stu_generate_shortcode_with_overrides( $parsed ) {
     $template = $parsed['template'];
     $elements = $parsed['elements'];
 
-    // Normalize template: remove newlines to match the improved non-base64 standard
-    $template_safe = str_replace( array( "\r", "\n" ), ' ', $template );
-    $template_safe = preg_replace( '/\s+/', ' ', $template_safe );
+    // Use rawurlencode for the template to avoid ALL shortcode attribute issues (including wpautop)
+    $template_encoded = rawurlencode( $template );
 
-    $shortcode = '[ux_ultimate_section html_template="' . esc_attr( $template_safe ) . '" tag="div" css_class=""]';
+    $shortcode = '[ux_ultimate_section html_template="' . $template_encoded . '" tag="div" css_class=""]';
 
     foreach ( $elements as $el ) {
         $type = $el['type'];

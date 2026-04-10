@@ -42,8 +42,8 @@ function stu_render_ultimate_section( $atts, $content = null ) {
         return do_shortcode( $content );
     }
 
-    // Decode HTML entities that WordPress may have encoded in the shortcode attribute
-    $template = html_entity_decode( $template, ENT_QUOTES, 'UTF-8' );
+    // Decode the URL-encoded template attribute
+    $template = rawurldecode( $template );
 
     // 1. Parse child elements and get slot => rendered_html
     $slots = stu_parse_child_slots( $content );

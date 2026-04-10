@@ -334,6 +334,10 @@
                         $('#stu-html-input').val('');
                         $('#stu-file-name').hide();
                         $('#stu-import-btn').prop('disabled', true);
+
+                        if (confirm('Import successful! Would you like to reload the page to see the new elements in UX Builder?')) {
+                            window.location.reload();
+                        }
                     } else {
                         STU.showStatus('error', response.data.message || stuImport.strings.error);
                         $('#stu-import-btn').prop('disabled', false);
