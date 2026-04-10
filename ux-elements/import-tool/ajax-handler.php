@@ -135,12 +135,12 @@ function stu_ajax_confirm_import() {
     // Generate multi-shortcode
     $final_shortcode = '';
     foreach ( $sections as $section ) {
-        $final_shortcode .= stu_generate_shortcode_with_overrides( $section ) . "\n\n";
+        $final_shortcode .= stu_generate_shortcode_with_overrides( $section ) . "\n";
     }
 
     // Append to post content
     $current_content = get_post_field( 'post_content', $post_id );
-    $updated_content = $current_content . "\n\n" . trim( $final_shortcode );
+    $updated_content = trim( $current_content ) . "\n" . trim( $final_shortcode );
 
     $result = wp_update_post( array(
         'ID'           => $post_id,

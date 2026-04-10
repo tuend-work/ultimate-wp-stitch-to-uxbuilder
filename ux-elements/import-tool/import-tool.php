@@ -392,9 +392,9 @@ class STU_Import_Tool {
     public static function generate_multi_shortcode( $sections ) {
         $output = '';
         foreach ( $sections as $section ) {
-            $output .= self::generate_shortcode( $section ) . "\n\n";
+            $output .= self::generate_shortcode( $section );
         }
-        return trim( $output );
+        return $output;
     }
 
     /**
@@ -409,13 +409,13 @@ class STU_Import_Tool {
         $template = $parsed['template'];
         $elements = $parsed['elements'];
 
-        // Escape double quotes in template for shortcode attribute
-        $template_escaped = str_replace( '"', '&quot;', $template );
+        // Use base64 for the template to avoid shortcode attribute parsing issues
+        $template_base64 = base64_encode( $template );
 
-        $shortcode = '[ux_ultimate_section html_template="' . $template_escaped . '" tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . '"]' . "\n";
+        $shortcode = '[ux_ultimate_section html_template="' . $template_base64 . '" tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . '"]';
 
         foreach ( $elements as $el ) {
-            $shortcode .= '  ' . self::element_to_shortcode( $el ) . "\n";
+            $shortcode .= self::element_to_shortcode( $el );
         }
 
         $shortcode .= '[/ux_ultimate_section]';
@@ -486,8 +486,8 @@ class STU_Import_Tool {
         $parts = array();
         foreach ( $attrs as $key => $val ) {
             if ( '' !== $val ) {
-                $val_escaped = str_replace( '"', '&quot;', $val );
-                $parts[] = $key . '="' . $val_escaped . '"';
+                // Use esc_attr for standard attributes
+                $parts[] = $key . '="' . esc_attr( $val ) . '"';
             }
         }
         return '[' . $tag . ' ' . implode( ' ', $parts ) . ']';
