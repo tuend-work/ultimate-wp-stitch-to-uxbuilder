@@ -329,50 +329,6 @@ class STU_Import_Tool {
         return implode( ' ', $parts );
     }
 
-    /**
-     * Process children of a container node at depth 1.
-     *
-     * @param DOMNode     $node     Container node.
-     * @param array       $counters Reference to counters array.
-     * @param DOMDocument $dom      DOM document.
-     * @return array With 'template' and 'elements' keys.
-     */
-    private static function process_container_node( $node, &$counters, $dom ) {
-        $elements = array();
-        $template = '';
-
-        foreach ( $node->childNodes as $child ) {
-            if ( $child->nodeType === XML_TEXT_NODE ) {
-                $template .= $child->textContent;
-                continue;
-            }
-
-            if ( $child->nodeType === XML_COMMENT_NODE ) {
-                $template .= '<!--' . $child->textContent . '-->';
-                continue;
-            }
-
-            if ( $child->nodeType !== XML_ELEMENT_NODE ) {
-                continue;
-            }
-
-            $tag_name = strtolower( $child->tagName );
-            $parsed = self::try_parse_element( $child, $tag_name, $counters, $dom );
-
-            if ( $parsed ) {
-                $template .= '{{' . $parsed['slot'] . '}}';
-                $elements[] = $parsed;
-            } else {
-                // Not a parseable tag — keep it as raw HTML in the template
-                $template .= $dom->saveHTML( $child );
-            }
-        }
-
-        return array(
-            'template' => $template,
-            'elements' => $elements,
-        );
-    }
 
     /**
      * Try to parse a DOM element into a child element definition.
@@ -538,7 +494,7 @@ class STU_Import_Tool {
         }
 
         // Wrap the whole nested structure in one Ultimate Section for asset management
-        return '[ux_ultimate_section tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . '"]' . "\n" . $content . "\n" . '[/ux_ultimate_section]';
+        return '[ux_ultimate_section tag="' . esc_attr( $tag ) . '" css_class="' . esc_attr( $css_class ) . ' STU_STAMP_2.0.1_ALPHA"]' . "\n" . $content . "\n" . '[/ux_ultimate_section]';
     }
 
     /**
