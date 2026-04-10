@@ -43,6 +43,10 @@ function stu_ajax_preview_import() {
             }
         } else {
             $html = file_get_contents( $file_path );
+            $result = STU_Import_Tool::parse_multi_sections( $html );
+            $sections = $result['sections'];
+        }
+    } elseif ( ! empty( $html ) ) {
         $result = STU_Import_Tool::parse_multi_sections( $html );
         $sections = $result['sections'];
     }
@@ -99,6 +103,11 @@ function stu_ajax_confirm_import() {
             $sections = STU_Import_Tool::parse_zip( $file_path );
         } else {
             $html = file_get_contents( $file_path );
+            $result = STU_Import_Tool::parse_multi_sections( $html );
+            $sections = $result['sections'];
+            $assets = $result['assets'];
+        }
+    } elseif ( ! empty( $html ) ) {
         $result = STU_Import_Tool::parse_multi_sections( $html );
         $sections = $result['sections'];
         $assets = $result['assets'];
