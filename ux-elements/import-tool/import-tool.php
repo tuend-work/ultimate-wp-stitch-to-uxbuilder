@@ -88,8 +88,8 @@ class STU_Import_Tool {
 
             $tag = strtolower( $node->tagName );
 
-            // Skip meta/script/style
-            if ( in_array( $tag, array( 'script', 'style', 'link', 'meta', 'title', 'head' ), true ) ) {
+            // Skip meta/link/title/head but KEEP script/style
+            if ( in_array( $tag, array( 'link', 'meta', 'title', 'head' ), true ) ) {
                 continue;
             }
 
@@ -178,8 +178,14 @@ class STU_Import_Tool {
             }
 
             $tag_name = strtolower( $child->tagName );
-            $parsed = self::try_parse_element( $child, $tag_name, $counters, $dom );
 
+            // Keep style and script tags as raw HTML
+            if ( in_array( $tag_name, array( 'style', 'script' ), true ) ) {
+                $template .= $dom->saveHTML( $child );
+                continue;
+            }
+
+            $parsed = self::try_parse_element( $child, $tag_name, $counters, $dom );
             if ( $parsed ) {
                 $template .= '{{' . $parsed['slot'] . '}}';
                 $elements[] = $parsed;
