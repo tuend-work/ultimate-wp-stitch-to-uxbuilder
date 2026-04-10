@@ -613,28 +613,44 @@ class STU_Import_Tool {
                 $section['template']
             );
 
-            // 4. Localize Inline SVGs — Replace <svg>...</svg> blocks with <img> tags
-            $section['template'] = preg_replace_callback(
-                '/<svg\b[^>]*>([\s\S]*?)<\/svg>/i',
-                function ( $matches ) use ( &$download_map ) {
-                    $svg_full_code = $matches[0];
-                    
-                    // Already processed?
-                    if ( isset( $download_map[md5($svg_full_code)] ) ) {
-                        return '<img src="' . esc_attr( $download_map[md5($svg_full_code)] ) . '" alt="" class="stu-stored-svg" />';
-                    }
+            // 4. Localize Inline SVGs in Template
+            $section['template'] = self::process_svg_localization( $section['template'], $download_map );
 
-                    $new_url = self::save_inline_svg_to_media( $svg_full_code );
-                    if ( $new_url ) {
-                        $download_map[md5($svg_full_code)] = $new_url;
-                        return '<img src="' . esc_attr( $new_url ) . '" alt="" class="stu-stored-svg" />';
+            // 5. Localize Inline SVGs in Elements (Values)
+            if ( ! empty( $section['elements'] ) ) {
+                foreach ( $section['elements'] as &$el ) {
+                    if ( ! empty( $el['value'] ) ) {
+                        $el['value'] = self::process_svg_localization( $el['value'], $download_map );
                     }
-
-                    return $matches[0];
-                },
-                $section['template']
-            );
+                }
+            }
         }
+    }
+
+    /**
+     * Helper to find and replace inline SVGs with <img> tags in a string.
+     */
+    private static function process_svg_localization( $content, &$download_map ) {
+        return preg_replace_callback(
+            '/<svg\b[^>]*>([\s\S]*?)<\/svg>/i',
+            function ( $matches ) use ( &$download_map ) {
+                $svg_code = $matches[0];
+                $hash = md5( $svg_code );
+
+                if ( isset( $download_map[ $hash ] ) ) {
+                    return '<img src="' . esc_attr( $download_map[ $hash ] ) . '" alt="" class="stu-stored-svg" />';
+                }
+
+                $new_url = self::save_inline_svg_to_media( $svg_code );
+                if ( $new_url ) {
+                    $download_map[ $hash ] = $new_url;
+                    return '<img src="' . esc_attr( $new_url ) . '" alt="" class="stu-stored-svg" />';
+                }
+
+                return $svg_code;
+            },
+            $content
+        );
     }
 
     /**
