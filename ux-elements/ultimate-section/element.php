@@ -12,13 +12,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Render the [ux_ultimate_section] shortcode.
  *
- * Flow:
- * 1. Parse child elements from $content shortcode to get [slot_name => rendered_html]
- * 2. Replace each {{slot}} in template with rendered child HTML
- * 3. Remaining {{slot}} → replace with default_content from child elements
- * 4. Slots still left → replace with empty string
- * 5. Wrap in the chosen tag with css_class
- *
  * @param array  $atts    Shortcode attributes.
  * @param string $content Shortcode inner content (child elements).
  * @return string Rendered HTML.
@@ -36,16 +29,13 @@ function stu_render_ultimate_section( $atts, $content = null ) {
     );
 
     // 1. Extract the Template from content
-    // Remove all [ux_field_*] shortcodes to get the RAW HTML template
     $template = preg_replace( '/\[ux_field_(text|image|link)[\s\S]*?\]/i', '', $content );
     $template = trim( $template );
 
-    // BUG FIX & FALLBACK: If template is empty, check the legacy 'html_template' attribute
     if ( empty( $template ) && ! empty( $atts['html_template'] ) ) {
         $template = rawurldecode( $atts['html_template'] );
     }
 
-    // Still empty? Show children directly as a last resort
     if ( empty( $template ) ) {
         return do_shortcode( $content );
     }
@@ -71,6 +61,11 @@ function stu_render_ultimate_section( $atts, $content = null ) {
     // Build class attribute
     $class = stu_sanitize_css_class( $atts['css_class'] );
     $class_attr = $class ? ' class="' . esc_attr( $class ) . '"' : '';
+
+    // If we are in UX Builder, strip <script> tags to prevent execution errors in editor
+    if ( function_exists( 'is_ux_builder' ) && is_ux_builder() ) {
+        $template = preg_replace( '/<script\b[^>]*>([\s\S]*?)<\/script>/i', '<!-- Script removed in editor -->', $template );
+    }
 
     // Final render - Avoid wpautop or any content filters that might break SVG/HTML structure
     $output = '<' . $tag . $class_attr . '>' . wp_kses( $template, stu_get_allowed_slot_html() ) . '</' . $tag . '>';
