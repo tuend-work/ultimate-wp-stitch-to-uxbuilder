@@ -612,7 +612,63 @@ class STU_Import_Tool {
                 },
                 $section['template']
             );
+
+            // 4. Localize Inline SVGs — Replace <svg>...</svg> blocks with <img> tags
+            $section['template'] = preg_replace_callback(
+                '/<svg\b[^>]*>([\s\S]*?)<\/svg>/i',
+                function ( $matches ) use ( &$download_map ) {
+                    $svg_full_code = $matches[0];
+                    
+                    // Already processed?
+                    if ( isset( $download_map[md5($svg_full_code)] ) ) {
+                        return '<img src="' . esc_attr( $download_map[md5($svg_full_code)] ) . '" alt="" class="stu-stored-svg" />';
+                    }
+
+                    $new_url = self::save_inline_svg_to_media( $svg_full_code );
+                    if ( $new_url ) {
+                        $download_map[md5($svg_full_code)] = $new_url;
+                        return '<img src="' . esc_attr( $new_url ) . '" alt="" class="stu-stored-svg" />';
+                    }
+
+                    return $matches[0];
+                },
+                $section['template']
+            );
         }
+    }
+
+    /**
+     * Save an inline SVG string to the Media Library and return its URL.
+     *
+     * @param string $svg_code Full SVG code.
+     * @return string|bool URL of the uploaded SVG file or false.
+     */
+    private static function save_inline_svg_to_media( $svg_code ) {
+        $filename = 'svg-' . substr( md5( $svg_code ), 0, 8 ) . '.svg';
+        $temp_file = wp_tempnam( $filename );
+        
+        // Ensure XML header exists for validity
+        if ( strpos( $svg_code, '<?xml' ) === false ) {
+            $svg_code = '<?xml version="1.0" encoding="UTF-8"?>' . "\n" . $svg_code;
+        }
+        
+        file_put_contents( $temp_file, $svg_code );
+
+        $file_array = array(
+            'name'     => $filename,
+            'tmp_name' => $temp_file,
+        );
+
+        add_filter( 'upload_mimes', array( __CLASS__, 'allow_svg_upload' ) );
+        $id = media_handle_sideload( $file_array, 0 );
+        remove_filter( 'upload_mimes', array( __CLASS__, 'allow_svg_upload' ) );
+
+        if ( is_wp_error( $id ) ) {
+            @unlink( $temp_file );
+            return false;
+        }
+
+        return wp_get_attachment_url( $id );
     }
 
     /**
