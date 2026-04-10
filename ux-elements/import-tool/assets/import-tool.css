@@ -167,7 +167,27 @@
 }
 
 .stu-preview-area h4:not(:first-child) {
-    margin-top: 20px;
+    margin-top: 30px;
+}
+
+.stu-section-preview {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.stu-section-preview h5 {
+    margin: 0 0 12px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 8px;
 }
 
 /* Preview Table */

@@ -27,21 +27,40 @@ function stu_ajax_preview_import() {
         wp_send_json_error( array( 'message' => __( 'Permission denied.', 'stitch-to-uxbuilder' ) ), 403 );
     }
 
-    // Get HTML input - use wp_unslash to handle WordPress magic quotes
+    // Get HTML input or ZIP file
     $html = isset( $_POST['html'] ) ? wp_unslash( $_POST['html'] ) : '';
     $post_id = isset( $_POST['post_id'] ) ? intval( $_POST['post_id'] ) : 0;
+    $sections = array();
 
-    if ( empty( $html ) ) {
-        wp_send_json_error( array( 'message' => __( 'No HTML provided.', 'stitch-to-uxbuilder' ) ) );
+    if ( ! empty( $_FILES['file'] ) && $_FILES['file']['error'] === UPLOAD_ERR_OK ) {
+        $file_path = $_FILES['file']['tmp_name'];
+        $file_name = $_FILES['file']['name'];
+
+        if ( preg_match( '/\.zip$/i', $file_name ) ) {
+            $sections = STU_Import_Tool::parse_zip( $file_path );
+            if ( isset( $sections['error'] ) ) {
+                wp_send_json_error( array( 'message' => $sections['error'] ) );
+            }
+        } else {
+            $html = file_get_contents( $file_path );
+            $sections = STU_Import_Tool::parse_multi_sections( $html );
+        }
+    } elseif ( ! empty( $html ) ) {
+        $sections = STU_Import_Tool::parse_multi_sections( $html );
     }
 
-    // Parse HTML
-    $parsed = STU_Import_Tool::parse_html( $html );
+    if ( empty( $sections ) ) {
+        wp_send_json_error( array( 'message' => __( 'No content found to parse.', 'stitch-to-uxbuilder' ) ) );
+    }
 
-    // Check for duplicate
+    // Check for duplicate (based on cumulative HTML if multi-section)
     $is_duplicate = false;
     if ( $post_id > 0 ) {
-        $is_duplicate = STU_Import_Tool::is_duplicate( $post_id, $html );
+        $cumulative_html = '';
+        foreach ( $sections as $sec ) {
+            $cumulative_html .= $sec['template'];
+        }
+        $is_duplicate = STU_Import_Tool::is_duplicate( $post_id, $cumulative_html );
     }
 
     // Count existing sections in the post
@@ -52,11 +71,10 @@ function stu_ajax_preview_import() {
     }
 
     // Generate shortcode
-    $shortcode = STU_Import_Tool::generate_shortcode( $parsed );
+    $shortcode = STU_Import_Tool::generate_multi_shortcode( $sections );
 
     wp_send_json_success( array(
-        'elements'          => $parsed['elements'],
-        'template'          => $parsed['template'],
+        'sections'          => $sections,
         'shortcode'         => $shortcode,
         'is_duplicate'      => $is_duplicate,
         'existing_sections' => $existing_sections,
@@ -80,40 +98,49 @@ function stu_ajax_confirm_import() {
         wp_send_json_error( array( 'message' => __( 'Permission denied.', 'stitch-to-uxbuilder' ) ), 403 );
     }
 
-    // Get HTML and dynamic_sources overrides
+    // Use the same parsing logic found in preview but for confirmation
+    $sections = array();
     $html = isset( $_POST['html'] ) ? wp_unslash( $_POST['html'] ) : '';
-    $dynamic_overrides = isset( $_POST['dynamic_sources'] ) ? json_decode( wp_unslash( $_POST['dynamic_sources'] ), true ) : array();
 
-    if ( empty( $html ) ) {
-        wp_send_json_error( array( 'message' => __( 'No HTML provided.', 'stitch-to-uxbuilder' ) ) );
+    if ( ! empty( $_FILES['file'] ) && $_FILES['file']['error'] === UPLOAD_ERR_OK ) {
+        $file_path = $_FILES['file']['tmp_name'];
+        if ( preg_match( '/\.zip$/i', $_FILES['file']['name'] ) ) {
+            $sections = STU_Import_Tool::parse_zip( $file_path );
+        } else {
+            $html = file_get_contents( $file_path );
+            $sections = STU_Import_Tool::parse_multi_sections( $html );
+        }
+    } elseif ( ! empty( $html ) ) {
+        $sections = STU_Import_Tool::parse_multi_sections( $html );
     }
 
-    // Check duplicate
-    if ( STU_Import_Tool::is_duplicate( $post_id, $html ) ) {
-        wp_send_json_error( array( 'message' => __( 'This HTML has already been imported to this post.', 'stitch-to-uxbuilder' ) ) );
+    if ( empty( $sections ) || isset( $sections['error'] ) ) {
+        wp_send_json_error( array( 'message' => __( 'No content found to parse.', 'stitch-to-uxbuilder' ) ) );
     }
 
-    // Parse HTML
-    $parsed = STU_Import_Tool::parse_html( $html );
-
-    // Apply dynamic source overrides from the preview UI
+    // Apply dynamic source overrides
     if ( is_array( $dynamic_overrides ) && ! empty( $dynamic_overrides ) ) {
-        foreach ( $parsed['elements'] as &$element ) {
-            $slot = $element['slot'];
-            if ( isset( $dynamic_overrides[ $slot ] ) && ! empty( $dynamic_overrides[ $slot ] ) ) {
-                $element['dynamic_enabled'] = '1';
-                $element['dynamic_source'] = sanitize_text_field( $dynamic_overrides[ $slot ] );
+        foreach ( $sections as &$section ) {
+            foreach ( $section['elements'] as &$element ) {
+                $slot = $element['slot'];
+                if ( isset( $dynamic_overrides[ $slot ] ) && ! empty( $dynamic_overrides[ $slot ] ) ) {
+                    $element['dynamic_enabled'] = '1';
+                    $element['dynamic_source'] = sanitize_text_field( $dynamic_overrides[ $slot ] );
+                }
             }
         }
-        unset( $element );
+        unset( $section, $element );
     }
 
-    // Generate shortcode with dynamic overrides
-    $shortcode = stu_generate_shortcode_with_overrides( $parsed );
+    // Generate multi-shortcode
+    $final_shortcode = '';
+    foreach ( $sections as $section ) {
+        $final_shortcode .= stu_generate_shortcode_with_overrides( $section ) . "\n\n";
+    }
 
     // Append to post content
     $current_content = get_post_field( 'post_content', $post_id );
-    $updated_content = $current_content . "\n" . $shortcode;
+    $updated_content = $current_content . "\n\n" . trim( $final_shortcode );
 
     $result = wp_update_post( array(
         'ID'           => $post_id,
@@ -125,11 +152,13 @@ function stu_ajax_confirm_import() {
     }
 
     // Record import hash
-    STU_Import_Tool::record_import( $post_id, $html );
+    $cumulative_html = '';
+    foreach ( $sections as $sec ) { $cumulative_html .= $sec['template']; }
+    STU_Import_Tool::record_import( $post_id, $cumulative_html );
 
     wp_send_json_success( array(
-        'message'   => __( 'Import successful! Shortcode appended to post content.', 'stitch-to-uxbuilder' ),
-        'shortcode' => $shortcode,
+        'message'   => __( 'Import successful! Sections appended to post content.', 'stitch-to-uxbuilder' ),
+        'shortcode' => $final_shortcode,
     ) );
 }
 add_action( 'wp_ajax_stu_confirm_import', 'stu_ajax_confirm_import' );

@@ -15,6 +15,113 @@ if ( ! defined( 'ABSPATH' ) ) {
 class STU_Import_Tool {
 
     /**
+     * Extract HTML from a ZIP file and parse it.
+     *
+     * @param string $zip_path Path to the ZIP file.
+     * @return array Array of sections data or error array.
+     */
+    public static function parse_zip( $zip_path ) {
+        if ( ! class_exists( 'ZipArchive' ) ) {
+            return array( 'error' => __( 'ZipArchive class not found. Please enable ZIP extension on your server.', 'stitch-to-uxbuilder' ) );
+        }
+
+        $zip = new ZipArchive();
+        if ( $zip->open( $zip_path ) !== true ) {
+            return array( 'error' => __( 'Failed to open ZIP file.', 'stitch-to-uxbuilder' ) );
+        }
+
+        $html_content = '';
+        $html_file_name = '';
+
+        // Look for index.html, code.html or any .html file
+        for ( $i = 0; $i < $zip->numFiles; $i++ ) {
+            $name = $zip->getNameIndex( $i );
+            if ( preg_match( '/\.(html?)$/i', $name ) ) {
+                // Priority to index.html or code.html
+                if ( 'index.html' === $name || 'code.html' === $name || empty( $html_content ) ) {
+                    $html_content = $zip->getFromIndex( $i );
+                    $html_file_name = $name;
+                }
+            }
+        }
+
+        $zip->close();
+
+        if ( empty( $html_content ) ) {
+            return array( 'error' => __( 'No HTML file found in ZIP.', 'stitch-to-uxbuilder' ) );
+        }
+
+        return self::parse_multi_sections( $html_content );
+    }
+
+    /**
+     * Parse HTML and split it into multiple ultimate_section blocks.
+     *
+     * @param string $html Raw HTML content.
+     * @return array Array of sections, each containing 'template' and 'elements'.
+     */
+    public static function parse_multi_sections( $html ) {
+        if ( empty( $html ) ) {
+            return array();
+        }
+
+        $dom = new DOMDocument( '1.0', 'UTF-8' );
+        libxml_use_internal_errors( true );
+        
+        // Wrap to handle fragments
+        $dom->loadHTML( '<?xml encoding="UTF-8"><body>' . $html . '</body>', LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD );
+        libxml_clear_errors();
+
+        $body = $dom->getElementsByTagName( 'body' )->item( 0 );
+        if ( ! $body ) {
+            return array( self::parse_html( $html ) );
+        }
+
+        $sections = array();
+        $blocks = array();
+
+        // Identify top-level blocks
+        foreach ( $body->childNodes as $node ) {
+            if ( $node->nodeType !== XML_ELEMENT_NODE ) {
+                continue;
+            }
+
+            $tag = strtolower( $node->tagName );
+
+            // Skip meta/script/style
+            if ( in_array( $tag, array( 'script', 'style', 'link', 'meta', 'title', 'head' ), true ) ) {
+                continue;
+            }
+
+            // If it's <main>, we treat its children as blocks
+            if ( 'main' === $tag ) {
+                foreach ( $node->childNodes as $main_child ) {
+                    if ( $main_child->nodeType === XML_ELEMENT_NODE ) {
+                        $blocks[] = $main_child;
+                    }
+                }
+            } else {
+                $blocks[] = $node;
+            }
+        }
+
+        // If no blocks found, parse the whole thing as one
+        if ( empty( $blocks ) ) {
+            return array( self::parse_html( $html ) );
+        }
+
+        foreach ( $blocks as $block ) {
+            $block_html = $dom->saveHTML( $block );
+            $parsed = self::parse_html( $block_html );
+            if ( ! empty( $parsed['elements'] ) || ! empty( trim( $parsed['template'] ) ) ) {
+                $sections[] = $parsed;
+            }
+        }
+
+        return $sections;
+    }
+
+    /**
      * Parse HTML string and extract elements at depth 1.
      *
      * Only parses tags directly at depth 1 within each top-level block.
@@ -274,6 +381,20 @@ class STU_Import_Tool {
         }
 
         return '<' . $tag . $attrs . '>' . $inner_template . '</' . $tag . '>';
+    }
+
+    /**
+     * Generate shortcode string for multiple sections.
+     *
+     * @param array $sections Array of parsed sections.
+     * @return string Multi-shortcode string.
+     */
+    public static function generate_multi_shortcode( $sections ) {
+        $output = '';
+        foreach ( $sections as $section ) {
+            $output .= self::generate_shortcode( $section ) . "\n\n";
+        }
+        return trim( $output );
     }
 
     /**

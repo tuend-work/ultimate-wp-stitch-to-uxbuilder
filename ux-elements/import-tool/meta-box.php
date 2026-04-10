@@ -58,10 +58,10 @@ function stu_render_import_meta_box( $post ) {
         <!-- Upload tab -->
         <div class="stu-tab-content" data-tab-content="upload">
             <div class="stu-upload-zone" id="stu-upload-zone">
-                <input type="file" id="stu-file-input" accept=".html,.htm" class="stu-file-input" />
+                <input type="file" id="stu-file-input" accept=".html,.htm,.zip" class="stu-file-input" />
                 <div class="stu-upload-label">
                     <span class="dashicons dashicons-upload"></span>
-                    <p><?php esc_html_e( 'Drop .html file here or click to select', 'stitch-to-uxbuilder' ); ?></p>
+                    <p><?php esc_html_e( 'Drop .html or .zip file here or click to select', 'stitch-to-uxbuilder' ); ?></p>
                 </div>
                 <div class="stu-file-name" id="stu-file-name" style="display:none;"></div>
             </div>

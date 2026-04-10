@@ -81,68 +81,67 @@
         },
 
         /**
-         * Read the uploaded file and store its content.
-         *
-         * @param {File} file      The selected file.
-         * @param {jQuery} $display jQuery element to show file name.
+         * Handle selected file.
          */
         handleFile: function (file, $display) {
-            if (!file.name.match(/\.html?$/i)) {
-                this.showStatus('error', 'Please select an .html or .htm file.');
+            if (!file.name.match(/\.(html?|zip)$/i)) {
+                this.showStatus('error', 'Please select an .html or .zip file.');
                 return;
             }
 
-            var reader = new FileReader();
-            reader.onload = function (e) {
-                STU.html = e.target.result;
-                $display.text('✓ ' + file.name).show();
+            STU.file = file;
+            $display.text('✓ ' + file.name).show();
 
-                // Auto-fill the textarea as well
-                $('#stu-html-input').val(STU.html);
-            };
-            reader.readAsText(file);
+            if (file.name.match(/\.html?$/i)) {
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    $('#stu-html-input').val(e.target.result);
+                };
+                reader.readAsText(file);
+            }
         },
 
         /**
-         * Preview button handler — sends HTML to server for parsing.
+         * Preview button handler.
          */
         bindPreview: function () {
             $('#stu-preview-btn').on('click', function () {
-                // Get HTML from textarea (takes priority) or stored file
-                var html = $('#stu-html-input').val().trim();
-                if (!html) {
-                    html = STU.html;
-                }
-
-                if (!html) {
-                    STU.showStatus('error', stuImport.strings.emptyHtml);
-                    return;
-                }
-
-                STU.html = html;
-                STU.doPreview(html);
+                STU.doPreview();
             });
         },
 
         /**
-         * Send HTML to the server for parsing and display results.
-         *
-         * @param {string} html Raw HTML to parse.
+         * Send HTML or File to the server for parsing.
          */
-        doPreview: function (html) {
+        doPreview: function () {
+            var html = $('#stu-html-input').val().trim();
+            
+            if (!html && !STU.file) {
+                STU.showStatus('error', stuImport.strings.emptyHtml);
+                return;
+            }
+
             this.showStatus('loading', stuImport.strings.parsing);
             this.isPreviewReady = false;
             $('#stu-import-btn').prop('disabled', true);
 
+            var formData = new FormData();
+            formData.append('action', 'stu_preview_import');
+            formData.append('nonce', stuImport.nonce);
+            formData.append('post_id', stuImport.postId);
+
+            if (STU.file) {
+                formData.append('file', STU.file);
+            } else {
+                formData.append('html', html);
+            }
+
             $.ajax({
                 url: stuImport.ajaxUrl,
                 method: 'POST',
-                data: {
-                    action: 'stu_preview_import',
-                    nonce: stuImport.nonce,
-                    html: html,
-                    post_id: stuImport.postId
-                },
+                data: formData,
+                processData: false,
+                contentType: false,
                 success: function (response) {
                     if (!response.success) {
                         STU.showStatus('error', response.data.message || stuImport.strings.error);
@@ -161,19 +160,16 @@
         },
 
         /**
-         * Render the preview table and shortcode output.
-         *
-         * @param {Object} data Parsed data from server.
+         * Render multiple sections preview.
          */
         renderPreview: function (data) {
             var $area = $('#stu-preview-area');
-            var $tbody = $('#stu-preview-table tbody');
             var $shortcode = $('#stu-shortcode-preview');
+            
+            // Clear existing tables but keep placeholder
+            $area.find('.stu-section-preview').remove();
 
-            $tbody.empty();
-
-            // No elements warning
-            if (!data.elements || data.elements.length === 0) {
+            if (!data.sections || data.sections.length === 0) {
                 STU.showStatus('error', stuImport.strings.noElements);
                 $area.hide();
                 return;
@@ -188,62 +184,52 @@
                 $('#stu-preview-warning').hide();
             }
 
-            // Duplicate warning
             if (data.is_duplicate) {
                 $('#stu-duplicate-warning').show();
             } else {
                 $('#stu-duplicate-warning').hide();
             }
 
-            // Build table rows
-            data.elements.forEach(function (el) {
-                var typeClass = '';
-                var typeLabel = '';
-                var content = '';
-                var sourceType = 'text';
+            // Create individual tables for each section
+            data.sections.forEach(function (section, index) {
+                var $secDiv = $('<div class="stu-section-preview">');
+                $secDiv.append($('<h5>').text('Section ' + (index + 1)));
+                
+                var $table = $('<table class="widefat"><thead><tr><th>Slot</th><th>Type</th><th>Content</th><th>Dynamic Source</th></tr></thead><tbody></tbody></table>');
+                var $tbody = $table.find('tbody');
 
-                switch (el.type) {
-                    case 'ux_field_text':
-                        typeClass = 'stu-type-badge--text';
-                        typeLabel = 'TEXT';
-                        content = el.value || '';
-                        sourceType = 'text';
-                        break;
-                    case 'ux_field_image':
-                        typeClass = 'stu-type-badge--image';
-                        typeLabel = 'IMAGE';
-                        content = el.src || '';
-                        sourceType = 'image';
-                        break;
-                    case 'ux_field_link':
-                        typeClass = 'stu-type-badge--link';
-                        typeLabel = 'LINK';
-                        content = (el.label || '') + ' → ' + (el.href || '');
-                        sourceType = 'link';
-                        break;
+                if (section.elements && section.elements.length > 0) {
+                    section.elements.forEach(function (el) {
+                        var typeLabel = el.type.replace('ux_field_', '').toUpperCase();
+                        var content = el.value || el.src || (el.label ? el.label + ' → ' + el.href : '');
+                        var sourceType = el.type.replace('ux_field_', '');
+                        if (sourceType === 'text') { sourceType = 'text'; } // mapping
+
+                        var sources = stuImport.dynamicSources[sourceType] || {};
+                        var $select = $('<select>').attr('data-slot', el.slot);
+                        $.each(sources, function (val, lbl) {
+                            $select.append($('<option>').val(val).text(lbl));
+                        });
+                        $select.append($('<option>').val('acf:custom').text('ACF Custom Field…'));
+
+                        var $row = $('<tr>');
+                        $row.append($('<td>').append($('<span class="stu-slot-name">').text(el.slot)));
+                        $row.append($('<td>').append($('<span class="stu-type-badge stu-type-badge--' + sourceType + '">').text(typeLabel)));
+                        $row.append($('<td>').append($('<span class="stu-content-preview">').text(content).attr('title', content)));
+                        $row.append($('<td>').append($select));
+                        $tbody.append($row);
+                    });
+                } else {
+                    $tbody.append('<tr><td colspan="4"><i>No slots in this block (Raw HTML only)</i></td></tr>');
                 }
 
-                // Build dynamic source dropdown
-                var sources = stuImport.dynamicSources[sourceType] || {};
-                var $select = $('<select>').attr('data-slot', el.slot);
-                $.each(sources, function (val, label) {
-                    $select.append($('<option>').val(val).text(label));
-                });
-
-                // ACF custom field option
-                $select.append($('<option>').val('acf:custom').text('ACF Custom Field…'));
-
-                var $row = $('<tr>');
-                $row.append($('<td>').append($('<span class="stu-slot-name">').text(el.slot)));
-                $row.append($('<td>').append($('<span class="stu-type-badge ' + typeClass + '">').text(typeLabel)));
-                $row.append($('<td>').append($('<span class="stu-content-preview">').text(content).attr('title', content)));
-                $row.append($('<td>').append($select));
-
-                $tbody.append($row);
+                $secDiv.append($table);
+                // Insert before shortcode preview
+                $('#stu-shortcode-preview').before($secDiv);
             });
 
-            // Handle ACF custom field selection
-            $tbody.find('select').on('change', function () {
+            // Global select change handler
+            $('.stu-section-preview select').on('change', function () {
                 var $this = $(this);
                 if ($this.val() === 'acf:custom') {
                     var fieldName = prompt('Enter ACF field name:');
@@ -255,17 +241,12 @@
                         $this.val('');
                     }
                 }
-
-                // Regenerate shortcode preview with current selections
                 STU.updateShortcodePreview();
             });
 
-            // Show shortcode
             $shortcode.text(data.shortcode);
-
             $area.slideDown(300);
 
-            // Enable import button (unless duplicate)
             if (!data.is_duplicate) {
                 STU.isPreviewReady = true;
                 $('#stu-import-btn').prop('disabled', false);
@@ -273,68 +254,52 @@
         },
 
         /**
-         * Update shortcode preview when dynamic source selections change.
+         * Update shortcode preview.
          */
         updateShortcodePreview: function () {
-            // This is a client-side approximation — the actual shortcode
-            // will be generated server-side on import
             var $shortcode = $('#stu-shortcode-preview');
-            var lines = STU.parsedData.shortcode.split('\n');
-            var updated = [];
-
-            lines.forEach(function (line) {
-                // Check if line has a matching element
-                var modified = line;
-
-                $('#stu-preview-table tbody select').each(function () {
-                    var slot = $(this).data('slot');
-                    var source = $(this).val();
-
-                    if (line.indexOf('slot="' + slot + '"') !== -1 && source) {
-                        modified = modified.replace('dynamic_enabled="0"', 'dynamic_enabled="1"');
-
-                        if (line.indexOf('ux_field_link') !== -1) {
-                            modified += ' dynamic_href="' + source + '"';
-                        } else {
-                            modified += ' dynamic_source="' + source + '"';
-                        }
+            // Re-fetch from server or simulate multi-section update
+            // For simplicity in UX, we'll just indicate it will apply on import
+            // or we could do a more complex regex replacement over the whole block.
+            // Let's do a simplified approach:
+            var currentText = STU.parsedData.shortcode;
+            
+            $('.stu-section-preview select').each(function () {
+                var slot = $(this).data('slot');
+                var source = $(this).val();
+                if (source) {
+                    var regex = new RegExp('\\[ux_field_([a-z]+)\\s+([^\]]*slot="' + slot + '"[^\]]*)dynamic_enabled="0"', 'g');
+                    if (currentText.indexOf('ux_field_link') !== -1 && slot.startsWith('link_')) {
+                        currentText = currentText.replace(regex, '[ux_field_$1 $2dynamic_enabled="1" dynamic_href="' + source + '"');
+                    } else {
+                        currentText = currentText.replace(regex, '[ux_field_$1 $2dynamic_enabled="1" dynamic_source="' + source + '"');
                     }
-                });
-
-                // Clean up: remove trailing ] then re-add if we appended attributes
-                updated.push(modified);
+                }
             });
 
-            $shortcode.text(updated.join('\n'));
+            $shortcode.text(currentText);
         },
 
         /**
-         * Import button handler — sends confirmed data to server.
+         * Import button handler.
          */
         bindImport: function () {
             $('#stu-import-btn').on('click', function () {
-                if (!STU.isPreviewReady) {
-                    return;
-                }
-
-                if (!confirm(stuImport.strings.confirmImport)) {
-                    return;
-                }
-
+                if (!STU.isPreviewReady) return;
+                if (!confirm(stuImport.strings.confirmImport)) return;
                 STU.doImport();
             });
         },
 
         /**
-         * Send the import request to the server.
+         * Send import request.
          */
         doImport: function () {
             this.showStatus('loading', stuImport.strings.importing);
             $('#stu-import-btn').prop('disabled', true);
 
-            // Collect dynamic source selections
             var dynamicSources = {};
-            $('#stu-preview-table tbody select').each(function () {
+            $('.stu-section-preview select').each(function () {
                 var slot = $(this).data('slot');
                 var source = $(this).val();
                 if (source) {
@@ -342,32 +307,32 @@
                 }
             });
 
+            var formData = new FormData();
+            formData.append('action', 'stu_confirm_import');
+            formData.append('nonce', stuImport.nonce);
+            formData.append('post_id', stuImport.postId);
+            formData.append('dynamic_sources', JSON.stringify(dynamicSources));
+
+            if (STU.file) {
+                formData.append('file', STU.file);
+            } else {
+                formData.append('html', $('#stu-html-input').val());
+            }
+
             $.ajax({
                 url: stuImport.ajaxUrl,
                 method: 'POST',
-                data: {
-                    action: 'stu_confirm_import',
-                    nonce: stuImport.nonce,
-                    post_id: stuImport.postId,
-                    html: STU.html,
-                    dynamic_sources: JSON.stringify(dynamicSources)
-                },
+                data: formData,
+                processData: false,
+                contentType: false,
                 success: function (response) {
                     if (response.success) {
                         STU.showStatus('success', response.data.message || stuImport.strings.success);
-
-                        // Update shortcode preview
-                        if (response.data.shortcode) {
-                            $('#stu-shortcode-preview').text(response.data.shortcode);
-                        }
-
-                        // Reset form
+                        $('#stu-shortcode-preview').text(response.data.shortcode);
                         STU.isPreviewReady = false;
-                        STU.html = '';
+                        STU.file = null;
                         $('#stu-html-input').val('');
                         $('#stu-file-name').hide();
-
-                        // Disable import to prevent double-click
                         $('#stu-import-btn').prop('disabled', true);
                     } else {
                         STU.showStatus('error', response.data.message || stuImport.strings.error);
