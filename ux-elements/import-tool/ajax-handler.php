@@ -37,10 +37,12 @@ function stu_ajax_preview_import() {
         $file_name = $_FILES['file']['name'];
 
         if ( preg_match( '/\.zip$/i', $file_name ) ) {
-            $sections = STU_Import_Tool::parse_zip( $file_path );
-            if ( isset( $sections['error'] ) ) {
-                wp_send_json_error( array( 'message' => $sections['error'] ) );
+            $result = STU_Import_Tool::parse_zip( $file_path );
+            if ( isset( $result['error'] ) ) {
+                wp_send_json_error( array( 'message' => $result['error'] ) );
             }
+            $sections = $result['sections'];
+            $assets = $result['assets'];
         } else {
             $html = file_get_contents( $file_path );
             $result = STU_Import_Tool::parse_multi_sections( $html );
