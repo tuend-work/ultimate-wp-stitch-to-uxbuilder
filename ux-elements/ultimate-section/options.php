@@ -17,6 +17,12 @@ add_ux_builder_shortcode( 'ux_ultimate_section', array(
     'wrap'     => true,
     'allow'    => array( 'ux_field_text', 'ux_field_image', 'ux_field_link' ),
     'options'  => array(
+        'html_template' => array(
+            'type'    => 'html',
+            'heading' => __( 'HTML Template', 'stitch-to-uxbuilder' ),
+            'description' => __( 'Paste your HTML template here. Use {{slot_name}} for dynamic placeholders.', 'stitch-to-uxbuilder' ),
+            'default' => '',
+        ),
         'tag' => array(
             'type'    => 'select',
             'heading' => __( 'Wrapper Tag', 'stitch-to-uxbuilder' ),
